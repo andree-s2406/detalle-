@@ -105,18 +105,56 @@ export const GoogleSheetsSync = {
         ORDER BY sort_order, rowid
       `, [o.id]);
 
+      // Construir lista de líneas a mostrar (productos + saldo anterior)
+      const displayRows = items.map(it => ({
+        descripcion: it.producto_nombre_historico || '',
+        color:       it.color || '',
+        cantidad:    it.cantidad || 0,
+        precio:      it.precio_unitario_historico || 0,
+        subtotal:    it.subtotal || 0,
+        isProduct:   true
+      }));
+
+      // Agregar líneas de Saldo Anterior si existen
+      const sEf = parseFloat(o.saldo_anterior_efectivo || (o.saldo_anterior_tipo === 'efectivo' ? o.saldo_anterior_monto : 0)) || 0;
+      const sBl = parseFloat(o.saldo_anterior_blanco   || (o.saldo_anterior_tipo === 'blanco'   ? o.saldo_anterior_monto : 0)) || 0;
+
+      if (sEf > 0) {
+        displayRows.push({
+          descripcion: 'Saldo Anterior (Efectivo / Sin Factura)',
+          color:       '',
+          cantidad:    '',
+          precio:      sEf,
+          subtotal:    sEf,
+          isProduct:   false
+        });
+      }
+
+      if (sBl > 0) {
+        displayRows.push({
+          descripcion: 'Saldo Anterior (En Blanco / Facturado)',
+          color:       '',
+          cantidad:    '',
+          precio:      sBl,
+          subtotal:    sBl,
+          isProduct:   false
+        });
+      }
+
       let totalCantidad = 0;
 
       for (let i = 0; i < FIXED_SLOTS; i++) {
-        const item = items[i];
+        const item = displayRows[i];
         if (item) {
-          totalCantidad += (item.cantidad || 0);
+          if (item.isProduct && typeof item.cantidad === 'number') {
+            totalCantidad += item.cantidad;
+          }
           rows.push([
             i === 0 ? (o.fecha || '') : '',
-            item.producto_nombre_historico || '',
+            item.descripcion || '',
             item.color || '',
-            item.cantidad || 0,
-            item.precio_unitario_historico || 0,
+            item.cantidad !== '' ? item.cantidad : '',
+            item.precio || 0,
             item.subtotal || 0
           ]);
         } else {
@@ -125,8 +163,8 @@ export const GoogleSheetsSync = {
       }
 
       // Resumen del pedido (Gris)
-      const sinFactura = o.importe_sin_factura || (o.total * 0.70);
-      const facturado  = o.importe_facturado   || (o.total * 0.30 * 1.245);
+      const sinFactura = o.importe_sin_factura ?? (o.total * 0.70);
+      const facturado  = o.importe_facturado   ?? (o.total * 0.30 * 1.245);
 
       rows.push(['TOTAL', '', '', totalCantidad, '', o.total || 0]);
       rows.push(['Sin factura', '', '', '', '', sinFactura]);

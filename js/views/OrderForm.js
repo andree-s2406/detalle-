@@ -116,22 +116,23 @@ export function renderOrderForm(params = {}) {
         <!-- Saldo Anterior (Opcional) -->
         <div class="card mb-md">
           <div class="card-header">
-            <span class="card-title">${icon('money')} Saldo Anterior</span>
-            <span class="text-muted text-sm">Opcional — deuda previa del cliente</span>
+            <span class="card-title">${icon('money')} Saldo Anterior (Deuda Previa)</span>
+            <span class="text-muted text-sm">Opcional — podés cargar efectivo, blanco o ambos</span>
           </div>
           <div class="form-row">
             <div class="form-group" style="margin:0;">
-              <label class="form-label">Monto ($)</label>
-              <input type="number" class="form-control" id="of-saldo-anterior"
-                     value="${_order?.saldo_anterior_monto || ''}" placeholder="0.00" step="0.01" min="0">
+              <label class="form-label">💵 Saldo en Efectivo / Negro ($)</label>
+              <input type="number" class="form-control" id="of-saldo-anterior-efectivo"
+                     value="${_order?.saldo_anterior_efectivo || (_order?.saldo_anterior_tipo === 'efectivo' ? _order.saldo_anterior_monto : '') || ''}"
+                     placeholder="0.00" step="0.01" min="0">
+              <span class="form-hint">Suma al saldo sin factura</span>
             </div>
             <div class="form-group" style="margin:0;">
-              <label class="form-label">Tipo de saldo</label>
-              <select class="form-control" id="of-saldo-anterior-tipo">
-                <option value="">— Sin saldo anterior —</option>
-                <option value="efectivo" ${(_order?.saldo_anterior_tipo === 'efectivo') ? 'selected' : ''}>En Efectivo (Sin Factura)</option>
-                <option value="blanco" ${(_order?.saldo_anterior_tipo === 'blanco') ? 'selected' : ''}>En Blanco (Facturado)</option>
-              </select>
+              <label class="form-label">🧾 Saldo en Blanco / Facturado ($)</label>
+              <input type="number" class="form-control" id="of-saldo-anterior-blanco"
+                     value="${_order?.saldo_anterior_blanco || (_order?.saldo_anterior_tipo === 'blanco' ? _order.saldo_anterior_monto : '') || ''}"
+                     placeholder="0.00" step="0.01" min="0">
+              <span class="form-hint">Suma al saldo facturado</span>
             </div>
           </div>
         </div>
@@ -153,9 +154,9 @@ export function renderOrderForm(params = {}) {
 
   document.getElementById('btn-save-order').addEventListener('click', _saveOrder);
 
-  // Recalcular totales cuando cambia saldo anterior
-  document.getElementById('of-saldo-anterior')?.addEventListener('input', _renderTotals);
-  document.getElementById('of-saldo-anterior-tipo')?.addEventListener('change', _renderTotals);
+  // Recalcular totales cuando cambian los saldos anteriores
+  document.getElementById('of-saldo-anterior-efectivo')?.addEventListener('input', _renderTotals);
+  document.getElementById('of-saldo-anterior-blanco')?.addEventListener('input', _renderTotals);
 }
 
 // --------------------------------------------------------
@@ -385,21 +386,13 @@ function _renderTotals() {
   const subtotalItems = _items.reduce((s, i) => s + (i.subtotal || 0), 0);
   const { sinFactura: baseSF, facturado: baseF } = calcularImportes(subtotalItems);
 
-  // Leer saldo anterior del formulario
-  const saldoAntMonto = parseFloat(document.getElementById('of-saldo-anterior')?.value || 0) || 0;
-  const saldoAntTipo  = document.getElementById('of-saldo-anterior-tipo')?.value || '';
+  // Leer saldos anteriores del formulario
+  const sEf = parseFloat(document.getElementById('of-saldo-anterior-efectivo')?.value || 0) || 0;
+  const sBl = parseFloat(document.getElementById('of-saldo-anterior-blanco')?.value || 0) || 0;
 
-  let sinFactura = baseSF;
-  let facturado  = baseF;
-
-  if (saldoAntMonto > 0 && saldoAntTipo === 'efectivo') {
-    sinFactura += saldoAntMonto;
-  } else if (saldoAntMonto > 0 && saldoAntTipo === 'blanco') {
-    facturado += saldoAntMonto;
-  }
-
-  const hasSaldo = saldoAntMonto > 0 && saldoAntTipo;
-  const total = subtotalItems + (hasSaldo ? saldoAntMonto : 0);
+  const sinFactura = baseSF + sEf;
+  const facturado  = baseF + sBl;
+  const total      = subtotalItems + sEf + sBl;
 
   const pctSF = (getPctSinFactura() * 100).toFixed(0);
   const pctF  = (getPctFacturado() * 100).toFixed(0);
@@ -408,25 +401,31 @@ function _renderTotals() {
   container.innerHTML = `
     <div class="totals-panel">
       <div class="totals-row">
-        <span class="label">Subtotal ítems</span>
+        <span class="label">Subtotal productos</span>
         <span class="amount">${formatCurrency(subtotalItems)}</span>
       </div>
-      ${hasSaldo ? `
-        <div class="totals-row" style="background:rgba(108,142,245,0.06);border-radius:6px;padding:6px 12px;">
-          <span class="label">${icon('money', '', 14)} Saldo anterior (${saldoAntTipo === 'efectivo' ? 'Efectivo' : 'En blanco'})</span>
-          <span class="amount" style="color:var(--c-accent);font-weight:600;">${formatCurrency(saldoAntMonto)}</span>
+      ${sEf > 0 ? `
+        <div class="totals-row" style="background:rgba(245,166,35,0.08);border-radius:6px;padding:6px 12px;">
+          <span class="label">${icon('money', '', 14)} Saldo Anterior Efectivo (Negro)</span>
+          <span class="amount" style="color:var(--c-warning);font-weight:600;">+ ${formatCurrency(sEf)}</span>
+        </div>
+      ` : ''}
+      ${sBl > 0 ? `
+        <div class="totals-row" style="background:rgba(91,212,245,0.08);border-radius:6px;padding:6px 12px;">
+          <span class="label">${icon('invoice', '', 14)} Saldo Anterior en Blanco (Facturado)</span>
+          <span class="amount" style="color:var(--c-info);font-weight:600;">+ ${formatCurrency(sBl)}</span>
         </div>
       ` : ''}
       <div class="totals-row">
-        <span class="label">Sin factura (${pctSF}%)${saldoAntTipo === 'efectivo' && saldoAntMonto > 0 ? ' + saldo ant.' : ''}</span>
+        <span class="label">Total Sin Factura (${pctSF}%${sEf > 0 ? ' + saldo ant.' : ''})</span>
         <span class="amount sin-factura">${formatCurrency(sinFactura)}</span>
       </div>
       <div class="totals-row">
-        <span class="label">Facturado (${pctF}% × +${rec}%)${saldoAntTipo === 'blanco' && saldoAntMonto > 0 ? ' + saldo ant.' : ''}</span>
+        <span class="label">Total Facturado (${pctF}% × +${rec}%${sBl > 0 ? ' + saldo ant.' : ''})</span>
         <span class="amount facturado">${formatCurrency(facturado)}</span>
       </div>
       <div class="totals-row total-final">
-        <span class="label">TOTAL</span>
+        <span class="label">TOTAL A PAGAR</span>
         <span class="amount">${formatCurrency(total)}</span>
       </div>
     </div>
@@ -441,24 +440,19 @@ async function _saveOrder() {
   const estado = document.getElementById('of-estado')?.value;
   const notas  = document.getElementById('of-notas')?.value ?? '';
 
-  // Saldo anterior
-  const saldo_anterior_monto = parseFloat(document.getElementById('of-saldo-anterior')?.value || 0) || 0;
-  const saldo_anterior_tipo  = document.getElementById('of-saldo-anterior-tipo')?.value || '';
+  // Saldos anteriores
+  const saldo_anterior_efectivo = parseFloat(document.getElementById('of-saldo-anterior-efectivo')?.value || 0) || 0;
+  const saldo_anterior_blanco   = parseFloat(document.getElementById('of-saldo-anterior-blanco')?.value || 0) || 0;
+  const totalSaldoAnt = saldo_anterior_efectivo + saldo_anterior_blanco;
 
   if (!fecha) {
     Toast.error('Fecha requerida', 'Seleccioná la fecha del pedido');
     return;
   }
 
-  // Permitir guardar si hay items O saldo anterior
-  if (_items.length === 0 && saldo_anterior_monto <= 0) {
-    Toast.error('Sin productos', 'Agregá al menos un producto o un saldo anterior');
-    return;
-  }
-
-  // Validar que si hay saldo anterior, tenga tipo seleccionado
-  if (saldo_anterior_monto > 0 && !saldo_anterior_tipo) {
-    Toast.error('Tipo de saldo requerido', 'Seleccioná si el saldo anterior es en efectivo o en blanco');
+  // Permitir guardar si hay items O algún saldo anterior
+  if (_items.length === 0 && totalSaldoAnt <= 0) {
+    Toast.error('Sin productos ni saldo', 'Agregá al menos un producto o un saldo anterior');
     return;
   }
 
@@ -481,7 +475,15 @@ async function _saveOrder() {
   try {
     if (_order) {
       // Edición: actualizar datos + items
-      await updateOrder(_order.id, { fecha, estado, notas, saldo_anterior_monto, saldo_anterior_tipo });
+      await updateOrder(_order.id, {
+        fecha,
+        estado,
+        notas,
+        saldo_anterior_efectivo,
+        saldo_anterior_blanco,
+        saldo_anterior_monto: totalSaldoAnt,
+        saldo_anterior_tipo: (saldo_anterior_efectivo > 0 && saldo_anterior_blanco > 0) ? 'mixto' : (saldo_anterior_efectivo > 0 ? 'efectivo' : (saldo_anterior_blanco > 0 ? 'blanco' : ''))
+      });
       await updateOrderItems(_order.id, _items.map(item => ({
         id:                        item._isNew ? null : item.id,
         product_id:                item.product_id || null,
@@ -498,8 +500,10 @@ async function _saveOrder() {
         fecha,
         estado,
         notas,
-        saldo_anterior_monto,
-        saldo_anterior_tipo,
+        saldo_anterior_efectivo,
+        saldo_anterior_blanco,
+        saldo_anterior_monto: totalSaldoAnt,
+        saldo_anterior_tipo: (saldo_anterior_efectivo > 0 && saldo_anterior_blanco > 0) ? 'mixto' : (saldo_anterior_efectivo > 0 ? 'efectivo' : (saldo_anterior_blanco > 0 ? 'blanco' : '')),
         items: _items.map(item => ({
           product_id:                item.product_id || null,
           producto_nombre_historico: item.producto_nombre_historico,

@@ -84,7 +84,16 @@ export function getNextOrderNumber() {
 //  PEDIDOS — Creación
 // --------------------------------------------------------
 
-export function createOrder({ fecha, estado = 'borrador', notas = '', items = [], saldo_anterior_monto = 0, saldo_anterior_tipo = '' }) {
+export function createOrder({
+  fecha,
+  estado = 'borrador',
+  notas = '',
+  items = [],
+  saldo_anterior_efectivo = 0,
+  saldo_anterior_blanco = 0,
+  saldo_anterior_monto = 0,
+  saldo_anterior_tipo = ''
+}) {
   return GoogleSheetsSync.executeWithDriveSync({
     localAction: () => {
       const id     = uuid();
@@ -99,24 +108,34 @@ export function createOrder({ fecha, estado = 'borrador', notas = '', items = []
 
       const { sinFactura: baseSF, facturado: baseF } = calcularImportes(subtotalItems);
 
-      // Sumar saldo anterior al importe correspondiente
-      let sinFactura = baseSF;
-      let facturado  = baseF;
-      const saldoAnt = parseFloat(saldo_anterior_monto) || 0;
+      // Soportar campos separados y fallback al formato previo
+      let sEfectivo = parseFloat(saldo_anterior_efectivo) || 0;
+      let sBlanco   = parseFloat(saldo_anterior_blanco) || 0;
+      const sMonto  = parseFloat(saldo_anterior_monto) || 0;
 
-      if (saldoAnt > 0 && saldo_anterior_tipo === 'efectivo') {
-        sinFactura += saldoAnt;
-      } else if (saldoAnt > 0 && saldo_anterior_tipo === 'blanco') {
-        facturado += saldoAnt;
+      if (sMonto > 0 && !sEfectivo && !sBlanco) {
+        if (saldo_anterior_tipo === 'efectivo') sEfectivo = sMonto;
+        else if (saldo_anterior_tipo === 'blanco') sBlanco = sMonto;
       }
 
-      const total = subtotalItems + saldoAnt;
+      const sinFactura = baseSF + sEfectivo;
+      const facturado  = baseF + sBlanco;
+      const total      = subtotalItems + sEfectivo + sBlanco;
+      const totalSaldoAnt = sEfectivo + sBlanco;
 
       transaction(() => {
         run(`
-          INSERT INTO orders (id, numero, fecha, estado, total, importe_sin_factura, importe_facturado, saldo_anterior_monto, saldo_anterior_tipo, notas, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [id, numero, fecha, estado, total, sinFactura, facturado, saldoAnt, saldo_anterior_tipo || '', notas, now, now]);
+          INSERT INTO orders (
+            id, numero, fecha, estado, total, importe_sin_factura, importe_facturado,
+            saldo_anterior_monto, saldo_anterior_tipo, saldo_anterior_efectivo, saldo_anterior_blanco,
+            notas, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          id, numero, fecha, estado, total, sinFactura, facturado,
+          totalSaldoAnt, (sEfectivo > 0 && sBlanco > 0) ? 'mixto' : (sEfectivo > 0 ? 'efectivo' : (sBlanco > 0 ? 'blanco' : '')),
+          sEfectivo, sBlanco,
+          notas, now, now
+        ]);
 
         items.forEach((item, idx) => {
           run(`
@@ -126,7 +145,7 @@ export function createOrder({ fecha, estado = 'borrador', notas = '', items = []
               item.color, item.cantidad, item.precio_unitario_historico, item.subtotal, idx]);
         });
 
-        _addHistory(id, 'creacion', '', `Pedido creado con ${items.length} ítem(s)${saldoAnt > 0 ? ` + saldo anterior $${saldoAnt}` : ''}`, now);
+        _addHistory(id, 'creacion', '', `Pedido creado con ${items.length} ítem(s)${totalSaldoAnt > 0 ? ` + saldo anterior $${totalSaldoAnt}` : ''}`, now);
       });
 
       return id;
@@ -142,34 +161,51 @@ export function createOrder({ fecha, estado = 'borrador', notas = '', items = []
 //  PEDIDOS — Edición
 // --------------------------------------------------------
 
-export function updateOrder(id, { fecha, estado, notas, saldo_anterior_monto, saldo_anterior_tipo }) {
+export function updateOrder(id, {
+  fecha,
+  estado,
+  notas,
+  saldo_anterior_efectivo,
+  saldo_anterior_blanco,
+  saldo_anterior_monto,
+  saldo_anterior_tipo
+}) {
   return GoogleSheetsSync.executeWithDriveSync({
     localAction: () => {
       const existing = getOrderById(id);
       if (!existing) return;
       const now = nowISO();
 
-      const saldoAnt = parseFloat(saldo_anterior_monto) || 0;
-      const saldoTipo = saldo_anterior_tipo || '';
+      let sEfectivo = saldo_anterior_efectivo !== undefined ? (parseFloat(saldo_anterior_efectivo) || 0) : (existing.saldo_anterior_efectivo || 0);
+      let sBlanco   = saldo_anterior_blanco !== undefined ? (parseFloat(saldo_anterior_blanco) || 0) : (existing.saldo_anterior_blanco || 0);
+      
+      if (saldo_anterior_monto !== undefined && !sEfectivo && !sBlanco) {
+        const sM = parseFloat(saldo_anterior_monto) || 0;
+        if (saldo_anterior_tipo === 'efectivo') sEfectivo = sM;
+        else if (saldo_anterior_tipo === 'blanco') sBlanco = sM;
+      }
 
       // Recalcular totales con saldo anterior
       const subtotalItems = (existing.items || []).reduce((s, i) => s + (i.subtotal || 0), 0);
       const { sinFactura: baseSF, facturado: baseF } = calcularImportes(subtotalItems);
 
-      let sinFactura = baseSF;
-      let facturado  = baseF;
-      if (saldoAnt > 0 && saldoTipo === 'efectivo') {
-        sinFactura += saldoAnt;
-      } else if (saldoAnt > 0 && saldoTipo === 'blanco') {
-        facturado += saldoAnt;
-      }
-      const total = subtotalItems + saldoAnt;
+      const sinFactura = baseSF + sEfectivo;
+      const facturado  = baseF + sBlanco;
+      const total      = subtotalItems + sEfectivo + sBlanco;
+      const totalSaldoAnt = sEfectivo + sBlanco;
 
       run(`
-        UPDATE orders SET fecha = ?, estado = ?, notas = ?, saldo_anterior_monto = ?, saldo_anterior_tipo = ?,
+        UPDATE orders SET fecha = ?, estado = ?, notas = ?,
+        saldo_anterior_monto = ?, saldo_anterior_tipo = ?,
+        saldo_anterior_efectivo = ?, saldo_anterior_blanco = ?,
         total = ?, importe_sin_factura = ?, importe_facturado = ?, updated_at = ?
         WHERE id = ?
-      `, [fecha, estado, notas, saldoAnt, saldoTipo, total, sinFactura, facturado, now, id]);
+      `, [
+        fecha, estado, notas,
+        totalSaldoAnt, (sEfectivo > 0 && sBlanco > 0) ? 'mixto' : (sEfectivo > 0 ? 'efectivo' : (sBlanco > 0 ? 'blanco' : '')),
+        sEfectivo, sBlanco,
+        total, sinFactura, facturado, now, id
+      ]);
 
       _addHistory(id, 'edicion', JSON.stringify({ fecha: existing.fecha, estado: existing.estado }),
         JSON.stringify({ fecha, estado }), now);
@@ -197,17 +233,12 @@ export function updateOrderItems(id, newItems = []) {
       const { sinFactura: baseSF, facturado: baseF } = calcularImportes(subtotalItems);
 
       // Preservar saldo anterior existente
-      const saldoAnt  = parseFloat(existing.saldo_anterior_monto) || 0;
-      const saldoTipo = existing.saldo_anterior_tipo || '';
+      const sEfectivo = parseFloat(existing.saldo_anterior_efectivo || (existing.saldo_anterior_tipo === 'efectivo' ? existing.saldo_anterior_monto : 0)) || 0;
+      const sBlanco   = parseFloat(existing.saldo_anterior_blanco || (existing.saldo_anterior_tipo === 'blanco' ? existing.saldo_anterior_monto : 0)) || 0;
 
-      let sinFactura = baseSF;
-      let facturado  = baseF;
-      if (saldoAnt > 0 && saldoTipo === 'efectivo') {
-        sinFactura += saldoAnt;
-      } else if (saldoAnt > 0 && saldoTipo === 'blanco') {
-        facturado += saldoAnt;
-      }
-      const total = subtotalItems + saldoAnt;
+      const sinFactura = baseSF + sEfectivo;
+      const facturado  = baseF + sBlanco;
+      const total      = subtotalItems + sEfectivo + sBlanco;
 
       transaction(() => {
         run(`DELETE FROM order_items WHERE order_id = ?`, [id]);

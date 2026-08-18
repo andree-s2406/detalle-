@@ -138,6 +138,30 @@ async function runMigrations() {
       } catch (e) { console.warn('V5 col saldo_anterior_tipo already exists'); }
     }
 
+    if (current < 6) {
+      try {
+        // Migración V6: Soporte para saldo anterior en efectivo y en blanco independientes
+        _db.run(`ALTER TABLE orders ADD COLUMN saldo_anterior_efectivo REAL NOT NULL DEFAULT 0;`);
+      } catch (e) { console.warn('V6 col saldo_anterior_efectivo already exists'); }
+      try {
+        _db.run(`ALTER TABLE orders ADD COLUMN saldo_anterior_blanco REAL NOT NULL DEFAULT 0;`);
+      } catch (e) { console.warn('V6 col saldo_anterior_blanco already exists'); }
+
+      // Migrar datos previos si existían
+      try {
+        _db.run(`
+          UPDATE orders 
+          SET saldo_anterior_efectivo = saldo_anterior_monto 
+          WHERE saldo_anterior_tipo = 'efectivo' AND saldo_anterior_efectivo = 0 AND saldo_anterior_monto > 0;
+        `);
+        _db.run(`
+          UPDATE orders 
+          SET saldo_anterior_blanco = saldo_anterior_monto 
+          WHERE saldo_anterior_tipo = 'blanco' AND saldo_anterior_blanco = 0 AND saldo_anterior_monto > 0;
+        `);
+      } catch (e) { console.warn('V6 data migration note:', e); }
+    }
+
     if (current < SCHEMA_VERSION) {
       _db.run(
         `INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`,

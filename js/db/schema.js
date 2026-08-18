@@ -2,7 +2,7 @@
 //  SCHEMA — SQL para crear todas las tablas y datos iniciales
 // ============================================================
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const CREATE_TABLES_SQL = `
 -- Configuración general del sistema
@@ -39,18 +39,20 @@ CREATE TABLE IF NOT EXISTS product_colors (
 
 -- Pedidos
 CREATE TABLE IF NOT EXISTS orders (
-  id                  TEXT PRIMARY KEY,
-  numero              INTEGER UNIQUE NOT NULL,
-  fecha               TEXT NOT NULL,
-  estado              TEXT NOT NULL DEFAULT 'borrador',
-  total               REAL NOT NULL DEFAULT 0,
-  importe_sin_factura REAL NOT NULL DEFAULT 0,
-  importe_facturado   REAL NOT NULL DEFAULT 0,
-  saldo_anterior_monto REAL NOT NULL DEFAULT 0,
-  saldo_anterior_tipo  TEXT DEFAULT '',
-  notas               TEXT DEFAULT '',
-  created_at          TEXT NOT NULL,
-  updated_at          TEXT NOT NULL
+  id                      TEXT PRIMARY KEY,
+  numero                  INTEGER UNIQUE NOT NULL,
+  fecha                   TEXT NOT NULL,
+  estado                  TEXT NOT NULL DEFAULT 'borrador',
+  total                   REAL NOT NULL DEFAULT 0,
+  importe_sin_factura     REAL NOT NULL DEFAULT 0,
+  importe_facturado       REAL NOT NULL DEFAULT 0,
+  saldo_anterior_monto    REAL NOT NULL DEFAULT 0,
+  saldo_anterior_tipo     TEXT DEFAULT '',
+  saldo_anterior_efectivo REAL NOT NULL DEFAULT 0,
+  saldo_anterior_blanco   REAL NOT NULL DEFAULT 0,
+  notas                   TEXT DEFAULT '',
+  created_at              TEXT NOT NULL,
+  updated_at              TEXT NOT NULL
 );
 
 -- Líneas de pedido (precio histórico guardado aquí)

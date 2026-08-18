@@ -145,10 +145,16 @@ function _renderDetail(orderId) {
               <span>Total del pedido</span>
               <span class="amount">${formatCurrency(order.total)}</span>
             </div>
-            ${(order.saldo_anterior_monto && order.saldo_anterior_monto > 0) ? `
-              <div class="totals-row" style="background:rgba(108,142,245,0.06);border-radius:6px;padding:6px 12px;">
-                <span>${icon('money', '', 14)} Saldo anterior (${order.saldo_anterior_tipo === 'efectivo' ? 'Efectivo' : 'En blanco'})</span>
-                <span class="amount" style="color:var(--c-accent);font-weight:600;">${formatCurrency(order.saldo_anterior_monto)}</span>
+            ${(order.saldo_anterior_efectivo > 0 || (order.saldo_anterior_tipo === 'efectivo' && order.saldo_anterior_monto > 0)) ? `
+              <div class="totals-row" style="background:rgba(245,166,35,0.08);border-radius:6px;padding:6px 12px;">
+                <span>${icon('money', '', 14)} Saldo Anterior Efectivo (Negro)</span>
+                <span class="amount" style="color:var(--c-warning);font-weight:600;">+ ${formatCurrency(order.saldo_anterior_efectivo || order.saldo_anterior_monto)}</span>
+              </div>
+            ` : ''}
+            ${(order.saldo_anterior_blanco > 0 || (order.saldo_anterior_tipo === 'blanco' && order.saldo_anterior_monto > 0)) ? `
+              <div class="totals-row" style="background:rgba(91,212,245,0.08);border-radius:6px;padding:6px 12px;">
+                <span>${icon('invoice', '', 14)} Saldo Anterior en Blanco</span>
+                <span class="amount" style="color:var(--c-info);font-weight:600;">+ ${formatCurrency(order.saldo_anterior_blanco || order.saldo_anterior_monto)}</span>
               </div>
             ` : ''}
             <div class="totals-row">
