@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Gestión de Pedidos — Detalle</title>
+  
+  <!-- Estilos del Sistema -->
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/components.css">
+</head>
+<body>
+
+  <div class="app-shell">
+    
+    <!-- Mobile sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="app-sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+        </div>
+        <div class="logo-text">
+          SGP Detalle
+          <span>Reemplazo Excel v1.0</span>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Principal</div>
+        <div class="nav-item active" data-route="dashboard">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          </span>
+          <span class="nav-label">Dashboard</span>
+        </div>
+        <div class="nav-item" data-route="orders">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
+          </span>
+          <span class="nav-label">Pedidos</span>
+        </div>
+        <div class="nav-item" data-route="payments">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+          </span>
+          <span class="nav-label">Pagos</span>
+        </div>
+
+        <div class="nav-section-title">Catálogo</div>
+        <div class="nav-item" data-route="products">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          </span>
+          <span class="nav-label">Productos</span>
+        </div>
+        <div class="nav-item" data-route="colors">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+          </span>
+          <span class="nav-label">Colores</span>
+        </div>
+
+        <div class="nav-section-title">Sistema</div>
+        <div class="nav-item" data-route="settings">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </span>
+          <span class="nav-label">Configuración</span>
+        </div>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div style="font-size: 11px; color: var(--c-text-3); text-align: center; padding: var(--sp-sm) 0;">
+          Modo Local (SQLite)
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div class="main-wrapper">
+      
+      <!-- TOP HEADER -->
+      <header class="top-header">
+        <div class="header-left">
+          <button class="btn btn-ghost btn-icon" id="mobile-menu-toggle" style="display: none;" aria-label="Menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+          </button>
+          <style>
+            @media (max-width: 768px) {
+              #mobile-menu-toggle { display: inline-flex !important; }
+            }
+          </style>
+          
+          <div class="header-breadcrumb">
+            <span class="root">Inicio</span>
+            <span class="separator">/</span>
+            <span class="current" id="breadcrumb-current">Dashboard</span>
+          </div>
+        </div>
+        
+        <div class="header-right">
+          <!-- Backup Status Quick Pill -->
+          <span class="chip" style="background: rgba(52, 201, 125, 0.08); border-color: rgba(52, 201, 125, 0.2); color: var(--c-success);">
+            ● Conectado Local (DB.db)
+          </span>
+        </div>
+      </header>
+
+      <!-- PAGE CONTENT VIEWPORT -->
+      <main class="page-content" id="app-view">
+        <!-- RENDERIZADO DINÁMICO POR VIEWS -->
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Contenedor global de Toasts -->
+  <div id="toast-container"></div>
+
+  <!-- sql.js SQLite WebAssembly Library -->
+  <script src="./lib/sql-wasm.js"></script>
+
+  <!-- Script principal de la aplicación SPA -->
+  <script type="module" src="./js/app.js"></script>
+
+  <!-- Diagnóstico de carga -->
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        if (!window.__app_initialized__) {
+          const isFileProtocol = window.location.protocol === 'file:';
+          const container = document.getElementById('app-view');
+          if (!container) return;
+
+          if (isFileProtocol) {
+            // Abierto con doble clic directo — faltan módulos
+            container.innerHTML = `
+              <div style="max-width:560px;margin:60px auto;padding:32px;background:#1a1a2e;border:2px solid #f55b5b;border-radius:12px;color:#e8edf8;font-family:sans-serif;text-align:center;line-height:1.7;">
+                <div style="font-size:44px;margin-bottom:12px;">⚠️</div>
+                <h2 style="color:#f55b5b;font-size:20px;margin-bottom:8px;">Servidor Local Requerido</h2>
+                <p style="color:#c8d8ef;font-size:14px;margin-bottom:16px;">
+                  El navegador bloqueó los módulos JavaScript porque se abrió el archivo directamente (protocolo <code>file://</code>).
+                </p>
+                <div style="background:rgba(0,0,0,.3);padding:16px;border-radius:8px;font-size:14px;text-align:left;border:1px solid #2e3a52;margin-bottom:20px;">
+                  <strong style="color:#fff;display:block;margin-bottom:8px;">Cómo solucionarlo:</strong>
+                  1. Cerrá esta pestaña.<br>
+                  2. Hacé doble clic en el archivo <strong><code>iniciar.bat</code></strong> en la carpeta del proyecto.<br>
+                  3. Se abrirá el navegador automáticamente en <code>http://localhost:8000</code>.
+                </div>
+                <button onclick="location.reload()" style="padding:10px 28px;background:#6c8ef5;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;">Reintentar</button>
+              </div>`;
+          } else {
+            // Viene del servidor pero algo falló — mostrar error real de JS
+            container.innerHTML = `
+              <div style="max-width:560px;margin:60px auto;padding:32px;background:#1a1a2e;border:2px solid #f55b5b;border-radius:12px;color:#e8edf8;font-family:sans-serif;text-align:center;line-height:1.7;">
+                <div style="font-size:44px;margin-bottom:12px;">❌</div>
+                <h2 style="color:#f55b5b;font-size:20px;margin-bottom:8px;">Error al iniciar la aplicación</h2>
+                <p style="color:#9aadcc;font-size:13px;margin-bottom:16px;">
+                  Hubo un error de JavaScript durante la carga.<br>
+                  Abrí la <strong>consola del navegador</strong> (F12 → pestaña "Console") para ver el detalle exacto.
+                </p>
+                <button onclick="location.reload()" style="padding:10px 28px;background:#6c8ef5;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;">🔄 Reintentar</button>
+              </div>`;
+          }
+        }
+      }, 3000);
+    });
+  </script>
+
+</body>
+</html>
