@@ -3,9 +3,10 @@
 // ============================================================
 
 import { getDb, persistDatabase, run, transaction, queryOne, queryAll } from '../db/database.js';
-import { uuid, nowISO, todayISO } from '../components/Formatter.js';
+import { uuid, nowISO, todayISO, parseCurrency } from '../components/Formatter.js';
 import { isConnected } from './google-auth.js';
 import { SheetsApi } from './sheets-api.js';
+import { calcularImportes } from '../config.js';
 import { getAllProducts, getAllColors } from '../models/Product.js';
 import { getAllOrders } from '../models/Order.js';
 import { getAllPayments } from '../models/Payment.js';
@@ -201,7 +202,17 @@ export const GoogleSheetsSync = {
     }));
     const totalSinFactura = orderBalances.reduce((total, balance) => total + balance.sinFactura, 0);
     const totalFacturado = orderBalances.reduce((total, balance) => total + balance.facturado, 0);
-    const bodyRows = Math.max(balanceSlots + 1, payments.length);
+    const totalAbonoEfectivo = payments.reduce((total, payment) =>
+      total + (payment.tipo_pago === 'efectivo' ? (Number(payment.importe) || 0) : 0), 0);
+    const totalAbonoBlanco = payments.reduce((total, payment) =>
+      total + (payment.tipo_pago === 'blanco' ? (Number(payment.importe) || 0) : 0), 0);
+    const pendienteEfectivo = Math.max(0, totalSinFactura - totalAbonoEfectivo);
+    const pendienteBlanco = Math.max(0, totalFacturado - totalAbonoBlanco);
+
+    // El resumen de abonos se ubica debajo de ambos listados para no tapar
+    // un pago cuando haya mas de 21 registros.
+    const paymentSummaryRow = Math.max(balanceSlots, payments.length);
+    const bodyRows = paymentSummaryRow + 1;
 
     for (let i = 0; i < bodyRows; i++) {
       const o = orders[i];
@@ -227,6 +238,12 @@ export const GoogleSheetsSync = {
         colG = p.tipo_pago === 'blanco'   ? p.importe : '';
         colH = p.tipo_pago === 'echeq'    ? p.importe : '';
         colI = p.tipo_pago === 'echeq'    ? (p.fecha_cobro || '') : '';
+      }
+
+      if (i === paymentSummaryRow) {
+        colE = 'PENDIENTE';
+        colF = pendienteEfectivo;
+        colG = pendienteBlanco;
       }
 
       rows.push([colA, colB, colC, '', colE, colF, colG, colH, colI]);
@@ -280,7 +297,7 @@ export const GoogleSheetsSync = {
 
           // Productos (Col A: Descripcion, Col B: precio)
           const prodNombre = String(row[0] || '').trim();
-          const prodPrecio = parseFloat(String(row[1] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+          const prodPrecio = parseCurrency(row[1]);
 
           if (prodNombre && prodNombre.toLowerCase() !== 'descripcion') {
             const existingP = queryOne(`SELECT id FROM products WHERE LOWER(nombre) = LOWER(?)`, [prodNombre]);
@@ -315,6 +332,17 @@ export const GoogleSheetsSync = {
       if (descOrderRows && descOrderRows.length > 0) {
         let currentOrderItems = [];
         let currentFecha = todayISO();
+        let currentSaldoEfectivo = 0;
+        let currentSaldoBlanco = 0;
+
+        const flushCurrentOrder = () => {
+          if (_saveImportedOrder(currentFecha, currentOrderItems, currentSaldoEfectivo, currentSaldoBlanco)) {
+            importedOrders++;
+          }
+          currentOrderItems = [];
+          currentSaldoEfectivo = 0;
+          currentSaldoBlanco = 0;
+        };
 
         for (let i = 0; i < descOrderRows.length; i++) {
           const row = descOrderRows[i];
@@ -325,30 +353,40 @@ export const GoogleSheetsSync = {
 
           // Saltear encabezado de membrete o de pedido
           if (colA.toLowerCase() === 'fecha' || colB.toLowerCase() === 'descripcion' || colB.includes('Pulguitas') || colB.includes('Cuit')) {
-            if (currentOrderItems.length > 0) {
-              _saveImportedOrder(currentFecha, currentOrderItems);
-              importedOrders++;
-              currentOrderItems = [];
-            }
+            flushCurrentOrder();
             continue;
           }
 
           if (colA === 'TOTAL' || colA === 'Sin factura' || colA === 'Facturado') {
-            if (colA === 'TOTAL' && currentOrderItems.length > 0) {
-              _saveImportedOrder(currentFecha, currentOrderItems);
-              importedOrders++;
-              currentOrderItems = [];
-            }
+            if (colA === 'TOTAL') flushCurrentOrder();
             continue;
           }
 
-          if (colB && colB.toLowerCase() !== 'descripcion') {
+          const normalizedDescription = colB.toLowerCase();
+          const isPlaceholder = !colB || normalizedDescription === '0' || normalizedDescription === '-' || normalizedDescription === '—';
+          if (!isPlaceholder && normalizedDescription !== 'descripcion') {
             if (colA && colA.length >= 8) {
               currentFecha = colA;
             }
-            const cantidad = parseFloat(String(row[3] || '1').replace(',', '.')) || 1;
-            const precio   = parseFloat(String(row[4] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+
+            // Estas lineas ya son un saldo completo: no son productos y no
+            // deben pasar por el calculo del 70%, 30% ni recargo de factura.
+            if (normalizedDescription === 'saldo anterior (efectivo / sin factura)') {
+              currentSaldoEfectivo += parseCurrency(row[5]) || parseCurrency(row[4]);
+              continue;
+            }
+            if (normalizedDescription === 'saldo anterior (en blanco / facturado)') {
+              currentSaldoBlanco += parseCurrency(row[5]) || parseCurrency(row[4]);
+              continue;
+            }
+
+            const quantityCell = String(row[3] ?? '').trim();
+            const cantidad = quantityCell === '' ? 1 : parseCurrency(quantityCell);
+            const precio   = parseCurrency(row[4]);
             const color    = String(row[2] || '').trim();
+
+            // Ignorar filas de relleno o incompletas: no son pedidos validos.
+            if (cantidad <= 0 || precio <= 0) continue;
 
             currentOrderItems.push({
               producto_nombre_historico: colB,
@@ -360,10 +398,7 @@ export const GoogleSheetsSync = {
           }
         }
 
-        if (currentOrderItems.length > 0) {
-          _saveImportedOrder(currentFecha, currentOrderItems);
-          importedOrders++;
-        }
+        flushCurrentOrder();
       }
     } catch (e) {
       console.warn('[Import] Advertencia en hoja Descripcion (pedidos):', e.message);
@@ -380,9 +415,9 @@ export const GoogleSheetsSync = {
           const fecha = String(row[0] || '').trim();
           if (!fecha || fecha.toLowerCase() === 'fecha') continue;
 
-          const efectivo = parseFloat(String(row[1] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-          const blanco   = parseFloat(String(row[2] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-          const echeq    = parseFloat(String(row[3] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+          const efectivo = parseCurrency(row[1]);
+          const blanco   = parseCurrency(row[2]);
+          const echeq    = parseCurrency(row[3]);
           const fechaCobro = String(row[4] || '').trim();
 
           // Registrar pagos según tipo
@@ -432,30 +467,80 @@ export const GoogleSheetsSync = {
   }
 };
 
-function _saveImportedOrder(fecha, items) {
+function _saveImportedOrder(fecha, items, saldoAnteriorEfectivo = 0, saldoAnteriorBlanco = 0) {
+  const validItems = items.filter(item =>
+    String(item.producto_nombre_historico || '').trim() &&
+    Number(item.cantidad) > 0 && Number(item.precio_unitario_historico) > 0
+  );
+  const subtotalItems = validItems.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
+  const sEfectivo = Number(saldoAnteriorEfectivo) || 0;
+  const sBlanco = Number(saldoAnteriorBlanco) || 0;
+  const total = subtotalItems + sEfectivo + sBlanco;
+
+  // Evitar pedidos vacios y reimportaciones del mismo pedido.
+  if ((validItems.length === 0 && sEfectivo <= 0 && sBlanco <= 0) || total <= 0) return false;
+  if (_importedOrderAlreadyExists(fecha, total, validItems, sEfectivo, sBlanco)) return false;
+
   const row = queryOne(`SELECT MAX(numero) as maxNum FROM orders`);
   const numero = (row?.maxNum ?? 0) + 1;
   const id = uuid();
   const now = nowISO();
 
-  let total = 0;
-  items.forEach(item => total += (item.subtotal || 0));
-
-  const sinFactura = total * 0.70;
-  const facturado  = total * 0.30 * 1.245;
+  const { sinFactura: baseSinFactura, facturado: baseFacturado } = calcularImportes(subtotalItems);
+  const sinFactura = baseSinFactura + sEfectivo;
+  const facturado  = baseFacturado + sBlanco;
+  const saldoAnteriorMonto = sEfectivo + sBlanco;
+  const saldoAnteriorTipo = sEfectivo > 0 && sBlanco > 0 ? 'mixto' : (sEfectivo > 0 ? 'efectivo' : (sBlanco > 0 ? 'blanco' : ''));
 
   transaction(() => {
     run(`
-      INSERT INTO orders (id, numero, fecha, estado, total, importe_sin_factura, importe_facturado, notas, created_at, updated_at)
-      VALUES (?, ?, ?, 'confirmado', ?, ?, ?, 'Importado desde Google Sheets', ?, ?)
-    `, [id, numero, fecha, total, sinFactura, facturado, now, now]);
+      INSERT INTO orders (
+        id, numero, fecha, estado, total, importe_sin_factura, importe_facturado,
+        saldo_anterior_monto, saldo_anterior_tipo, saldo_anterior_efectivo, saldo_anterior_blanco,
+        notas, created_at, updated_at
+      ) VALUES (?, ?, ?, 'confirmado', ?, ?, ?, ?, ?, ?, ?, 'Importado desde Google Sheets', ?, ?)
+    `, [
+      id, numero, fecha, total, sinFactura, facturado,
+      saldoAnteriorMonto, saldoAnteriorTipo, sEfectivo, sBlanco,
+      now, now
+    ]);
 
-    items.forEach((item, idx) => {
+    validItems.forEach((item, idx) => {
       const pRow = queryOne(`SELECT id FROM products WHERE LOWER(nombre) = LOWER(?)`, [item.producto_nombre_historico]);
       run(`
         INSERT INTO order_items (id, order_id, product_id, producto_nombre_historico, color, cantidad, precio_unitario_historico, subtotal, sort_order)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [uuid(), id, pRow?.id || null, item.producto_nombre_historico, item.color, item.cantidad, item.precio_unitario_historico, item.subtotal, idx]);
+    });
+  });
+
+  return true;
+}
+
+function _importedOrderAlreadyExists(fecha, total, items, saldoAnteriorEfectivo, saldoAnteriorBlanco) {
+  const candidates = queryAll(`
+    SELECT id, saldo_anterior_efectivo, saldo_anterior_blanco FROM orders
+    WHERE fecha = ? AND ABS(total - ?) < 0.005
+  `, [fecha, total]);
+
+  return candidates.some(candidate => {
+    if (Math.abs((Number(candidate.saldo_anterior_efectivo) || 0) - saldoAnteriorEfectivo) >= 0.005 ||
+        Math.abs((Number(candidate.saldo_anterior_blanco) || 0) - saldoAnteriorBlanco) >= 0.005) {
+      return false;
+    }
+
+    const existingItems = queryAll(`
+      SELECT producto_nombre_historico, color, cantidad, precio_unitario_historico
+      FROM order_items WHERE order_id = ?
+      ORDER BY sort_order, rowid
+    `, [candidate.id]);
+
+    return existingItems.length === items.length && existingItems.every((existing, index) => {
+      const imported = items[index];
+      return String(existing.producto_nombre_historico || '').trim().toLowerCase() === String(imported.producto_nombre_historico || '').trim().toLowerCase() &&
+        String(existing.color || '').trim().toLowerCase() === String(imported.color || '').trim().toLowerCase() &&
+        Math.abs(Number(existing.cantidad) - Number(imported.cantidad)) < 0.005 &&
+        Math.abs(Number(existing.precio_unitario_historico) - Number(imported.precio_unitario_historico)) < 0.005;
     });
   });
 }

@@ -49,8 +49,36 @@ export function formatPercent(decimal) {
 
 // --- Parsear moneda a número ---
 export function parseCurrency(str) {
-  if (typeof str === 'number') return str;
-  return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+  if (typeof str === 'number') return Number.isFinite(str) ? str : 0;
+
+  // Acepta formatos de Google Sheets tanto internacionales (1,330,000.00)
+  // como argentinos (1.330.000,00), con o sin simbolo de moneda.
+  let value = String(str ?? '').trim().replace(/[^0-9,.-]/g, '');
+  if (!value) return 0;
+
+  const comma = value.lastIndexOf(',');
+  const dot = value.lastIndexOf('.');
+
+  if (comma !== -1 && dot !== -1) {
+    const decimal = comma > dot ? ',' : '.';
+    const thousand = decimal === ',' ? /\./g : /,/g;
+    value = value.replace(thousand, '').replace(decimal, '.');
+  } else {
+    const separator = comma !== -1 ? ',' : (dot !== -1 ? '.' : '');
+    if (separator) {
+      const parts = value.split(separator);
+      const decimalDigits = parts.at(-1).replace('-', '').length;
+      const isThousands = decimalDigits === 3;
+
+      if (isThousands) {
+        value = parts.join('');
+      } else {
+        value = `${parts.slice(0, -1).join('')}.${parts.at(-1)}`;
+      }
+    }
+  }
+
+  return Number.parseFloat(value) || 0;
 }
 
 // --- Fecha de hoy en formato ISO (yyyy-mm-dd) ---
