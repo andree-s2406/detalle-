@@ -17,7 +17,14 @@ export function nowISO() {
 // --- Formatear fecha para mostrar (dd/mm/yyyy) ---
 export function formatDate(isoStr) {
   if (!isoStr) return '—';
-  const d = new Date(isoStr.replace('T', ' ').split('.')[0]);
+  const value = String(isoStr).trim();
+
+  // Las fechas de pedidos son YYYY-MM-DD y no incluyen hora. Crear un Date
+  // para ellas las interpreta como UTC y, en Argentina, las muestra un dia antes.
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+
+  const d = new Date(value.replace('T', ' ').split('.')[0]);
   if (isNaN(d)) return isoStr;
   return d.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
