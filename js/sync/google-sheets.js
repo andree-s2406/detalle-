@@ -92,7 +92,10 @@ export const GoogleSheetsSync = {
       ['', 'Salta 158 monserrat, capital federal', '', '', '', '']
     ];
 
-    const FIXED_SLOTS = 11;
+    // Cada pedido conserva 11 renglones libres como minimo. Si sus productos
+    // y saldos ocupan todos esos renglones, se agregan los necesarios antes
+    // del resumen para que ningun item quede fuera de la planilla.
+    const MIN_ORDER_SLOTS = 11;
 
     orders.forEach(o => {
       // Cabecera del pedido (Cyan)
@@ -143,7 +146,8 @@ export const GoogleSheetsSync = {
 
       let totalCantidad = 0;
 
-      for (let i = 0; i < FIXED_SLOTS; i++) {
+      const slotCount = Math.max(MIN_ORDER_SLOTS, displayRows.length);
+      for (let i = 0; i < slotCount; i++) {
         const item = displayRows[i];
         if (item) {
           if (item.isProduct && typeof item.cantidad === 'number') {
@@ -182,21 +186,38 @@ export const GoogleSheetsSync = {
   async syncPaymentsSheet() {
     const orders = getAllOrders({ orderBy: 'o.numero ASC' });
     const payments = getAllPayments();
+    const MIN_BALANCE_SLOTS = 21;
 
     const rows = [
       ['Fecha', 'Saldo sin Factura', 'Saldo Facturado', '', 'Fecha', 'Abono Efectivo', 'Abono en BLANCO', 'echeq', 'fecha cobro Echeq']
     ];
 
-    const maxRows = Math.max(orders.length, payments.length);
-    for (let i = 0; i < maxRows; i++) {
+    // La tabla de saldos siempre muestra 21 casillas como minimo. El total se
+    // coloca inmediatamente despues y baja una fila por cada pedido adicional.
+    const balanceSlots = Math.max(MIN_BALANCE_SLOTS, orders.length);
+    const orderBalances = orders.map(order => ({
+      sinFactura: Number(order.importe_sin_factura ?? (order.total * 0.70)) || 0,
+      facturado: Number(order.importe_facturado ?? (order.total * 0.30 * 1.245)) || 0
+    }));
+    const totalSinFactura = orderBalances.reduce((total, balance) => total + balance.sinFactura, 0);
+    const totalFacturado = orderBalances.reduce((total, balance) => total + balance.facturado, 0);
+    const bodyRows = Math.max(balanceSlots + 1, payments.length);
+
+    for (let i = 0; i < bodyRows; i++) {
       const o = orders[i];
       const p = payments[i];
 
       let colA = '', colB = '', colC = '';
-      if (o) {
+      if (i < balanceSlots && o) {
         colA = o.fecha;
-        colB = o.importe_sin_factura;
-        colC = o.importe_facturado;
+        colB = orderBalances[i].sinFactura;
+        colC = orderBalances[i].facturado;
+      }
+
+      if (i === balanceSlots) {
+        colA = 'TOTAL SALDOS';
+        colB = totalSinFactura;
+        colC = totalFacturado;
       }
 
       let colE = '', colF = '', colG = '', colH = '', colI = '';
