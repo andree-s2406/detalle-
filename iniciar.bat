@@ -11,19 +11,13 @@ echo ============================================================
 echo.
 
 :: ── 1. ACTUALIZACION AUTOMATICA DESDE GITHUB ──────────────
-where git >nul 2>&1
-if %errorlevel% equ 0 (
-    if exist "%~dp0.git" (
-        echo [ACTUALIZACION] Verificando nuevas actualizaciones en GitHub...
-        git pull origin main --quiet >nul 2>&1
-        if %errorlevel% equ 0 (
-            echo [ACTUALIZACION] Sistema al dia.
-        ) else (
-            echo [ACTUALIZACION] Modo sin conexion o al dia.
-        )
-        echo.
-    )
+:: Actualizador sin Git: descarga el ZIP publicado en GitHub.
+if exist "%~dp0actualizar.ps1" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0actualizar.ps1"
+) else (
+    echo [ACTUALIZACION] No se encontro actualizar.ps1. Se iniciara la version local.
 )
+echo.
 
 :: ── 2. LIBERAR PUERTO 8000 SI ESTABA ABIERTO ──────────────
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8000 " ^| findstr "LISTENING"') do (

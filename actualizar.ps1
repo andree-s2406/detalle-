@@ -11,12 +11,37 @@ $TEMP_ZIP  = Join-Path $env:TEMP "detalle_update.zip"
 $TEMP_DIR  = Join-Path $env:TEMP "detalle_update"
 $VER_FILE  = Join-Path $APP_DIR "version.txt"
 
-# Archivos/carpetas que NUNCA se deben sobreescribir (datos del usuario)
-$EXCLUDE = @()
+# Archivos/carpetas que NUNCA se deben sobreescribir (datos del usuario).
+# Los pedidos, productos y pagos se almacenan en IndexedDB del navegador, fuera
+# de esta carpeta. Estas exclusiones protegen tambien futuras copias locales.
+$EXCLUDE = @(
+    '.git\\',
+    'datos\\',
+    'data\\',
+    'backups\\',
+    'respaldo\\',
+    'respaldos\\'
+)
 
 function Write-Status($msg, $color = "Cyan") {
     Write-Host ""
     Write-Host "  $msg" -ForegroundColor $color
+}
+
+function Compare-AppVersion($left, $right) {
+    # Las versiones se esperan como 2026-08-19.1. Devuelve 1 si $left es mayor,
+    # 0 si son iguales y -1 si es menor.
+    $leftParts = [regex]::Matches($left, '\\d+') | ForEach-Object { [int]$_.Value }
+    $rightParts = [regex]::Matches($right, '\\d+') | ForEach-Object { [int]$_.Value }
+    $length = [Math]::Max($leftParts.Count, $rightParts.Count)
+
+    for ($i = 0; $i -lt $length; $i++) {
+        $leftValue = if ($i -lt $leftParts.Count) { $leftParts[$i] } else { 0 }
+        $rightValue = if ($i -lt $rightParts.Count) { $rightParts[$i] } else { 0 }
+        if ($leftValue -gt $rightValue) { return 1 }
+        if ($leftValue -lt $rightValue) { return -1 }
+    }
+    return 0
 }
 
 # ── Verificar conectividad ─────────────────────────────────
@@ -41,9 +66,16 @@ try {
         $localVersion = (Get-Content $VER_FILE -Raw).Trim()
     }
 
-    if ($remoteVersion -ne "unknown" -and $localVersion -eq $remoteVersion) {
-        Write-Status "[ACTUALIZACION] Ya estas en la ultima version ($localVersion). Sin cambios." "Green"
-        exit 0
+    if ($remoteVersion -ne "unknown") {
+        $versionComparison = Compare-AppVersion $remoteVersion $localVersion
+        if ($versionComparison -eq 0) {
+            Write-Status "[ACTUALIZACION] Ya estas en la ultima version ($localVersion). Sin cambios." "Green"
+            exit 0
+        }
+        if ($versionComparison -lt 0) {
+            Write-Status "[ACTUALIZACION] La version local ($localVersion) es mas nueva. No se reemplazara." "Yellow"
+            exit 0
+        }
     }
 
     Write-Status "[ACTUALIZACION] Nueva version disponible. Descargando actualizacion..." "Yellow"
@@ -67,6 +99,8 @@ try {
     }
 
     # ── Copiar archivos ───────────────────────────────────
+    # Solo se agregan o reemplazan archivos de la nueva version: no se borra
+    # ningun archivo local, incluso si ya no existe en GitHub.
     $items = Get-ChildItem $extracted.FullName -Recurse
     $total = $items.Count
     $count = 0
