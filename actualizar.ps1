@@ -15,12 +15,12 @@ $VER_FILE  = Join-Path $APP_DIR "version.txt"
 # Los pedidos, productos y pagos se almacenan en IndexedDB del navegador, fuera
 # de esta carpeta. Estas exclusiones protegen tambien futuras copias locales.
 $EXCLUDE = @(
-    '.git\\',
-    'datos\\',
-    'data\\',
-    'backups\\',
-    'respaldo\\',
-    'respaldos\\'
+    '.git\',
+    'datos\',
+    'data\',
+    'backups\',
+    'respaldo\',
+    'respaldos\'
 )
 
 function Write-Status($msg, $color = "Cyan") {
@@ -31,8 +31,8 @@ function Write-Status($msg, $color = "Cyan") {
 function Compare-AppVersion($left, $right) {
     # Las versiones se esperan como 2026-08-19.1. Devuelve 1 si $left es mayor,
     # 0 si son iguales y -1 si es menor.
-    $leftParts = [regex]::Matches($left, '\\d+') | ForEach-Object { [int]$_.Value }
-    $rightParts = [regex]::Matches($right, '\\d+') | ForEach-Object { [int]$_.Value }
+    $leftParts = [regex]::Matches($left, '\d+') | ForEach-Object { [int]$_.Value }
+    $rightParts = [regex]::Matches($right, '\d+') | ForEach-Object { [int]$_.Value }
     $length = [Math]::Max($leftParts.Count, $rightParts.Count)
 
     for ($i = 0; $i -lt $length; $i++) {
