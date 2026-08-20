@@ -425,22 +425,36 @@ export const GoogleSheetsSync = {
       console.warn('[Import] Advertencia en hoja Descripcion (pedidos):', e.message);
     }
 
-    // 3. Importar HOJA "Pagos" (Pagos en cols E a I)
+    // 3. Importar HOJA "Pagos" (Pagos en cols E a I, filas desde E1)
     try {
+      // Leer desde la fila 1 para capturar todos los datos posibles
       const pmtRows = await SheetsApi.getValues('Pagos!E1:I1000');
-      if (pmtRows && pmtRows.length > 1) {
-        for (let i = 1; i < pmtRows.length; i++) {
+      if (pmtRows && pmtRows.length > 0) {
+        for (let i = 0; i < pmtRows.length; i++) {
           const row = pmtRows[i];
           if (!row || row.length === 0) continue;
 
           const fecha = String(row[0] || '').trim();
           const normalizedFecha = fecha.toLowerCase();
-          // Las filas de resumen de la exportacion no son pagos. Solo se
-          // importan filas con fecha real para evitar duplicar totales.
-          const isDate = /^\d{4}-\d{2}-\d{2}$/.test(fecha) || /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(fecha);
-          if (!isDate || normalizedFecha === 'fecha' ||
-              normalizedFecha === 'total abonado' ||
-              normalizedFecha === 'pendiente') continue;
+
+          // Saltar filas de encabezado y filas de resumen (TOTAL ABONADO, PENDIENTE, etc.)
+          const isHeaderOrSummary =
+            normalizedFecha === 'fecha' ||
+            normalizedFecha === 'total abonado' ||
+            normalizedFecha === 'pendiente' ||
+            normalizedFecha === 'total saldos' ||
+            normalizedFecha === '' ||
+            normalizedFecha === '-' ||
+            normalizedFecha === '—';
+
+          if (isHeaderOrSummary) continue;
+
+          // Validar que sea una fecha real (formatos: YYYY-MM-DD, DD/MM/YYYY, D/M/YY, etc.)
+          const isDate =
+            /^\d{4}-\d{2}-\d{2}$/.test(fecha) ||
+            /^\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4}$/.test(fecha);
+
+          if (!isDate) continue;
 
           const efectivo = parseCurrency(row[1]);
           const blanco   = parseCurrency(row[2]);
@@ -457,27 +471,34 @@ export const GoogleSheetsSync = {
           for (const item of pmtList) {
             if (item.importe > 0) {
               const normalizedPaymentDate = _normalizeSheetDate(fecha);
+
+              // Verificar si ya existe este pago exacto (evitar duplicados)
               const existingPayment = queryOne(`
                 SELECT id FROM payments
                 WHERE fecha = ? AND tipo_pago = ? AND ABS(importe - ?) < 0.005
                   AND COALESCE(fecha_cobro, '') = ?
                 LIMIT 1
-              `, [normalizedPaymentDate, item.tipo, item.importe, item.cobro]);
+              `, [normalizedPaymentDate, item.tipo, item.importe, item.cobro || '']);
+
               if (existingPayment) continue;
 
-              // Asignar al primer pedido con saldo pendiente
+              // Intentar vincular al pedido con mayor saldo pendiente que coincida,
+              // pero si no hay ninguno, guardar como pago general (order_id = NULL).
+              // Así el balance total SIEMPRE refleja todos los cobros.
               const openOrder = queryOne(`
                 SELECT o.id, o.numero FROM orders o
                 WHERE (SELECT COALESCE(SUM(importe), 0) FROM payments WHERE order_id = o.id) < o.total
+                  AND o.estado != 'cancelado'
                 ORDER BY o.numero ASC LIMIT 1
               `);
 
-              if (openOrder) {
-                run(`INSERT INTO payments (id, order_id, fecha, tipo_pago, importe, fecha_cobro, observaciones, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                  [uuid(), openOrder.id, normalizedPaymentDate, item.tipo, item.importe, item.cobro, 'Importado de Google Sheets', nowISO()]);
-                importedPayments++;
-              }
+              const orderId = openOrder ? openOrder.id : null;
+
+              run(`INSERT INTO payments (id, order_id, fecha, tipo_pago, importe, fecha_cobro, observaciones, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [uuid(), orderId, normalizedPaymentDate, item.tipo, item.importe,
+                 item.cobro || '', 'Importado de Google Sheets', nowISO()]);
+              importedPayments++;
             }
           }
         }
