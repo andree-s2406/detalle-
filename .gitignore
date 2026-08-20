@@ -12,6 +12,8 @@ __pycache__/
 Thumbs.db
 desktop.ini
 
-# IDEs
+# IDEs & Agents
 .vscode/
 .idea/
+.agents/
+skills-lock.json

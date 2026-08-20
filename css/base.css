@@ -1,8 +1,8 @@
 /* ============================================================
-   BASE — Reset + estilos globales
+   BASE — Reset & Global Typography (Impeccable Standards)
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -15,23 +15,37 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'tnum';
 }
 
 body {
   font-family: var(--font-sans);
   font-size: var(--fs-base);
-  background: var(--c-bg);
+  background-color: var(--c-bg);
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 117, 246, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(16, 185, 129, 0.03), transparent);
+  background-attachment: fixed;
   color: var(--c-text);
-  line-height: 1.6;
+  line-height: 1.55;
   min-height: 100vh;
   overflow-x: hidden;
+  letter-spacing: -0.01em;
 }
 
+/* Headings con jerarquía visual y espaciado proporcional */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   color: var(--c-text);
+  letter-spacing: -0.02em;
 }
+
+h1 { font-size: var(--fs-2xl); font-weight: 700; }
+h2 { font-size: var(--fs-xl); }
+h3 { font-size: var(--fs-lg); }
+h4 { font-size: var(--fs-md); }
 
 a {
   color: var(--c-accent);
@@ -39,32 +53,83 @@ a {
   transition: color var(--t-fast);
 }
 
-a:hover { color: var(--c-accent-2); }
+a:hover {
+  color: var(--c-accent-hover);
+}
 
-ul, ol { list-style: none; }
+ul, ol {
+  list-style: none;
+}
 
-img { max-width: 100%; display: block; }
+img {
+  max-width: 100%;
+  display: block;
+}
 
+/* Inputs, botones y controles heredan tipografía limpia */
 button, input, select, textarea {
   font-family: inherit;
   font-size: inherit;
+  color: inherit;
 }
 
-button { cursor: pointer; border: none; background: none; }
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  user-select: none;
+}
 
-input:focus, select:focus, textarea:focus, button:focus {
+/* Foco accesible de alta visibilidad */
+:focus-visible {
   outline: 2px solid var(--c-accent);
   outline-offset: 2px;
 }
 
 input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible),
 button:focus:not(:focus-visible) {
   outline: none;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--c-bg-2); }
-::-webkit-scrollbar-thumb { background: var(--c-border-2); border-radius: var(--r-full); }
-::-webkit-scrollbar-thumb:hover { background: var(--c-text-3); }
+/* Números tabulares automáticos para tablas y datos financieros */
+.td-mono, .amount, .stat-value, .payment-amount, .saldo-pendiente, code, pre {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
 
-::selection { background: var(--c-accent-glow); color: var(--c-text); }
+/* Scrollbar ultra-refinado integrado en la paleta oscura */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--c-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: var(--r-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Selección de texto estilizada */
+::selection {
+  background: var(--c-accent-glow);
+  color: #ffffff;
+}
+
+/* Respeto por preferencias de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

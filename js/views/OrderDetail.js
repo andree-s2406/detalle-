@@ -1,5 +1,5 @@
 // ============================================================
-//  ORDER DETAIL VIEW — Vista completa del pedido + pagos con SVG
+//  ORDER DETAIL VIEW — Impeccable Standards
 // ============================================================
 
 import { getOrderById } from '../models/Order.js';
@@ -33,6 +33,7 @@ function _renderDetail(orderId) {
   const view = document.getElementById('app-view');
   const totalPagado  = order.payments.reduce((s, p) => s + p.importe, 0);
   const saldoPend    = order.total - totalPagado;
+  const pctCobrado   = order.total > 0 ? Math.min(100, Math.round((totalPagado / order.total) * 100)) : 0;
   const { sinFactura, facturado } = calcularImportes(order.total);
 
   const itemsRows = (order.items || []).map(item => `
@@ -40,7 +41,7 @@ function _renderDetail(orderId) {
       <td>
         <strong>${escapeHtml(item.producto_nombre_historico)}</strong>
         ${item.producto_nombre_historico !== item.producto_nombre_actual && item.producto_nombre_actual
-          ? `<br><span class="text-muted text-sm">Actual: ${escapeHtml(item.producto_nombre_actual)}</span>`
+          ? `<br><span class="text-muted text-xs">Actual: ${escapeHtml(item.producto_nombre_actual)}</span>`
           : ''}
       </td>
       <td>
@@ -48,12 +49,11 @@ function _renderDetail(orderId) {
           ? `<span class="chip chip-color">${colorDot(item.color)}<span>${escapeHtml(item.color)}</span></span>`
           : '<span class="text-muted">—</span>'}
       </td>
-      <td class="td-center">${item.cantidad}</td>
+      <td class="td-center td-mono"><strong>${item.cantidad}</strong></td>
       <td class="td-right td-mono">
         ${formatCurrency(item.precio_unitario_historico)}
-        <br><span class="text-muted" style="font-size:10px;">📌 Histórico</span>
       </td>
-      <td class="td-right td-mono"><strong>${formatCurrency(item.subtotal)}</strong></td>
+      <td class="td-right td-mono"><strong style="color:var(--c-text);">${formatCurrency(item.subtotal)}</strong></td>
     </tr>
   `).join('');
 
@@ -62,12 +62,12 @@ function _renderDetail(orderId) {
         <div class="payment-item">
           <div>
             ${paymentBadge(p.tipo_pago)}
-            <div class="text-sm text-muted mt-sm">${formatDate(p.fecha)}</div>
-            ${p.fecha_cobro ? `<div class="text-sm" style="color:var(--c-warning);">Cobro: ${formatDate(p.fecha_cobro)}</div>` : ''}
-            ${p.observaciones ? `<div class="text-sm text-muted">${escapeHtml(p.observaciones)}</div>` : ''}
+            <div class="text-xs text-muted mt-xs">${formatDate(p.fecha)}</div>
+            ${p.fecha_cobro ? `<div class="text-xs" style="color:var(--c-warning);margin-top:2px;">Cobro: ${formatDate(p.fecha_cobro)}</div>` : ''}
+            ${p.observaciones ? `<div class="text-xs text-muted mt-xs">${escapeHtml(p.observaciones)}</div>` : ''}
           </div>
           <div class="payment-amount">${formatCurrency(p.importe)}</div>
-          <div class="flex gap-sm" style="margin-left:var(--sp-sm);">
+          <div class="flex gap-xs" style="margin-left:var(--sp-sm);">
             <button class="btn btn-ghost btn-icon btn-sm" title="Editar pago" onclick="window._editPayment('${p.id}','${orderId}')">
               ${icon('edit', '', 14)}
             </button>
@@ -77,13 +77,13 @@ function _renderDetail(orderId) {
           </div>
         </div>
       `).join('')
-    : `<div class="text-muted text-sm" style="padding:var(--sp-md);">Sin pagos registrados</div>`;
+    : `<div class="text-muted text-sm text-center" style="padding:var(--sp-lg);">Sin pagos registrados aún</div>`;
 
   view.innerHTML = `
     <div class="page-header">
       <div>
         <h1 class="page-title">${formatOrderNumber(order.numero)}</h1>
-        <p class="page-subtitle">${stateBadge(order.estado)} &nbsp;·&nbsp; ${formatDate(order.fecha)}</p>
+        <p class="page-subtitle">${stateBadge(order.estado)} &nbsp;·&nbsp; Fecha: ${formatDate(order.fecha)}</p>
       </div>
       <div class="page-actions">
         <button class="btn btn-ghost" onclick="Router.navigate('orders')">← Volver</button>
@@ -106,14 +106,14 @@ function _renderDetail(orderId) {
             <span class="card-title">${icon('products')} Productos del pedido</span>
             <span class="text-muted text-sm">${order.items?.length || 0} ítem(s)</span>
           </div>
-          <div class="table-wrapper" style="border:none;">
+          <div class="table-wrapper" style="border:none;box-shadow:none;">
             <table>
               <thead>
                 <tr>
                   <th>Producto</th>
                   <th>Color</th>
                   <th class="td-center">Cant.</th>
-                  <th class="td-right">Precio hist.</th>
+                  <th class="td-right">Precio unit.</th>
                   <th class="td-right">Subtotal</th>
                 </tr>
               </thead>
@@ -127,8 +127,8 @@ function _renderDetail(orderId) {
         <!-- Pagos -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">${icon('payments')} Pagos</span>
-            <span class="text-success text-sm text-mono">${formatCurrency(totalPagado)} cobrado</span>
+            <span class="card-title">${icon('payments')} Pagos registrados</span>
+            <span class="text-success text-sm text-mono font-weight-600">${formatCurrency(totalPagado)} cobrado</span>
           </div>
           <div id="payments-list">${paymentsRows}</div>
         </div>
@@ -138,34 +138,46 @@ function _renderDetail(orderId) {
       <div>
         <div class="card mb-md">
           <div class="card-header">
-            <span class="card-title">${icon('money')} Resumen</span>
+            <span class="card-title">${icon('money')} Resumen Financiero</span>
           </div>
-          <div class="totals-panel" style="background:transparent;border:none;padding:0;">
+          
+          <!-- Barra de Progreso de Cobro -->
+          <div class="payment-progress-container">
+            <div class="payment-progress-label">
+              <span>Progreso de cobro</span>
+              <strong style="color: ${pctCobrado === 100 ? 'var(--c-success)' : 'var(--c-accent-text)'}; font-family: var(--font-mono);">${pctCobrado}%</strong>
+            </div>
+            <div class="payment-progress-track">
+              <div class="payment-progress-fill ${pctCobrado === 100 ? 'full' : ''}" style="width: ${pctCobrado}%;"></div>
+            </div>
+          </div>
+
+          <div class="totals-panel" style="background:transparent;border:none;padding:0;box-shadow:none;margin-top:0;">
             <div class="totals-row">
               <span>Total del pedido</span>
               <span class="amount">${formatCurrency(order.total)}</span>
             </div>
             ${(order.saldo_anterior_efectivo > 0 || (order.saldo_anterior_tipo === 'efectivo' && order.saldo_anterior_monto > 0)) ? `
-              <div class="totals-row" style="background:rgba(245,166,35,0.08);border-radius:6px;padding:6px 12px;">
-                <span>${icon('money', '', 14)} Saldo Anterior Efectivo (Negro)</span>
-                <span class="amount" style="color:var(--c-warning);font-weight:600;">+ ${formatCurrency(order.saldo_anterior_efectivo || order.saldo_anterior_monto)}</span>
+              <div class="totals-row" style="background:var(--c-warning-soft);border-radius:var(--r-sm);padding:6px 10px;">
+                <span>${icon('money', '', 14)} Saldo Anterior Efectivo</span>
+                <span class="amount text-warning">+ ${formatCurrency(order.saldo_anterior_efectivo || order.saldo_anterior_monto)}</span>
               </div>
             ` : ''}
             ${(order.saldo_anterior_blanco > 0 || (order.saldo_anterior_tipo === 'blanco' && order.saldo_anterior_monto > 0)) ? `
-              <div class="totals-row" style="background:rgba(91,212,245,0.08);border-radius:6px;padding:6px 12px;">
+              <div class="totals-row" style="background:var(--c-info-soft);border-radius:var(--r-sm);padding:6px 10px;">
                 <span>${icon('invoice', '', 14)} Saldo Anterior en Blanco</span>
-                <span class="amount" style="color:var(--c-info);font-weight:600;">+ ${formatCurrency(order.saldo_anterior_blanco || order.saldo_anterior_monto)}</span>
+                <span class="amount text-accent">+ ${formatCurrency(order.saldo_anterior_blanco || order.saldo_anterior_monto)}</span>
               </div>
             ` : ''}
             <div class="totals-row">
-              <span>Sin factura</span>
+              <span>Sin factura (70%)</span>
               <span class="amount sin-factura">${formatCurrency(order.importe_sin_factura)}</span>
             </div>
             <div class="totals-row">
-              <span>Facturado</span>
+              <span>Facturado (30% + Rec.)</span>
               <span class="amount facturado">${formatCurrency(order.importe_facturado)}</span>
             </div>
-            <div class="divider"></div>
+            <div class="divider" style="margin: var(--sp-sm) 0;"></div>
             <div class="totals-row">
               <span>Total cobrado</span>
               <span class="amount text-success">${formatCurrency(totalPagado)}</span>
@@ -183,15 +195,15 @@ function _renderDetail(orderId) {
         ${order.notas ? `
           <div class="card mb-md">
             <div class="card-header"><span class="card-title">${icon('invoice')} Notas</span></div>
-            <p class="text-muted">${escapeHtml(order.notas)}</p>
+            <p class="text-muted text-sm" style="line-height:1.6;">${escapeHtml(order.notas)}</p>
           </div>
         ` : ''}
 
         <div class="card">
-          <div class="card-header"><span class="card-title">${icon('clock')} Historial</span></div>
-          <div class="text-sm text-muted">
+          <div class="card-header"><span class="card-title">${icon('clock')} Registro</span></div>
+          <div class="text-xs text-muted" style="line-height:1.6;">
             <div>Creado: ${formatDateTime(order.created_at)}</div>
-            <div class="mt-sm">Modificado: ${formatDateTime(order.updated_at)}</div>
+            <div class="mt-xs">Última mod.: ${formatDateTime(order.updated_at)}</div>
           </div>
         </div>
       </div>
@@ -240,7 +252,7 @@ export function openPaymentForm(paymentId, orderId, onSave) {
         </div>
         <div class="form-row mt-md">
           <div class="form-group" style="margin:0;">
-            <label class="form-label required">Importe</label>
+            <label class="form-label required">Importe ($)</label>
             <input type="number" class="form-control" id="pmt-importe" value="${existing?.importe ?? ''}"
                    placeholder="0.00" step="0.01" min="0" required>
           </div>
@@ -252,7 +264,7 @@ export function openPaymentForm(paymentId, orderId, onSave) {
         <div class="form-group mt-md">
           <label class="form-label">Observaciones</label>
           <input type="text" class="form-control" id="pmt-obs" value="${escapeHtml(existing?.observaciones ?? '')}"
-                 placeholder="Opcional...">
+                 placeholder="Ej: Transferencia Banco Galicia, cheque nº 1234...">
         </div>
       </form>
     `,

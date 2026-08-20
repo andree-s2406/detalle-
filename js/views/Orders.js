@@ -123,7 +123,7 @@ function _renderOrdersTable() {
         <td class="td-right td-mono ${saldoClass}">${formatCurrency(Math.abs(saldo))}</td>
         <td class="text-muted text-sm text-center">
           ${o.total_items || 0} ítem(s)
-          ${o.saldo_anterior_monto > 0 ? `<div style="font-size:10px;color:var(--c-accent);margin-top:2px;">💰 Saldo ant. (${o.saldo_anterior_tipo === 'efectivo' ? 'Efectivo' : 'Blanco'})</div>` : ''}
+          ${o.saldo_anterior_monto > 0 ? `<div style="font-size:10px;color:var(--c-accent);margin-top:2px;">Saldo ant. (${o.saldo_anterior_tipo === 'efectivo' ? 'Efectivo' : 'Blanco'})</div>` : ''}
         </td>
         <td class="td-actions" onclick="event.stopPropagation()">
           <div class="flex gap-sm">

@@ -1,96 +1,127 @@
 /* ============================================================
    DESIGN TOKENS — Sistema de Gestión de Pedidos
+   Standards: Impeccable Design & Taste System (Deep Oceanic Midnight Palette)
    ============================================================ */
 
 :root {
-  /* --- Paleta principal --- */
-  --c-bg:          #0f1117;
-  --c-bg-2:        #161b27;
-  --c-bg-3:        #1e2535;
-  --c-surface:     #242d40;
-  --c-surface-2:   #2d3750;
-  --c-border:      #2e3a52;
-  --c-border-2:    #3d4f6e;
+  /* --- Superficies y Fondos en capas oscuras de alta precisión (Deep Midnight Slate & Azure) --- */
+  --c-bg:             #080c14;
+  --c-bg-2:           #0d1322;
+  --c-bg-3:           #131c30;
+  --c-surface:        #18233c;
+  --c-surface-2:      #1e2d4d;
+  --c-surface-hover:  #202f52;
+  
+  /* --- Bordes y Delimitadores con Alpha de Alta Definición --- */
+  --c-border:         rgba(148, 163, 184, 0.08);
+  --c-border-2:       rgba(148, 163, 184, 0.15);
+  --c-border-strong:  rgba(148, 163, 184, 0.28);
+  --c-border-focus:   rgba(56, 117, 246, 0.55);
 
-  /* --- Acento principal: Índigo vibrante --- */
-  --c-accent:      #6c8ef5;
-  --c-accent-2:    #4f74f0;
-  --c-accent-3:    #3a5de0;
-  --c-accent-glow: rgba(108, 142, 245, 0.20);
-  --c-accent-soft: rgba(108, 142, 245, 0.10);
+  /* --- Acento Principal: Royal Celestial Azure / Electric Cobalt --- */
+  --c-accent:         #3875f6;
+  --c-accent-hover:   #2563eb;
+  --c-accent-active:  #1d4ed8;
+  --c-accent-glow:    rgba(56, 117, 246, 0.25);
+  --c-accent-soft:    rgba(56, 117, 246, 0.12);
+  --c-accent-text:    #60a5fa;
+  --c-accent-gradient: linear-gradient(135deg, #3875f6 0%, #1d4ed8 100%);
 
-  /* --- Colores semánticos --- */
-  --c-success:     #34c97d;
-  --c-success-soft:rgba(52, 201, 125, 0.12);
-  --c-warning:     #f5a623;
-  --c-warning-soft:rgba(245, 166, 35, 0.12);
-  --c-danger:      #f55b5b;
-  --c-danger-soft: rgba(245, 91, 91, 0.12);
-  --c-info:        #5bd4f5;
-  --c-info-soft:   rgba(91, 212, 245, 0.12);
+  /* --- Colores Semánticos de Alta Visibilidad y Armonía Cromática --- */
+  --c-success:        #10b981;
+  --c-success-hover:  #059669;
+  --c-success-soft:   rgba(16, 185, 129, 0.12);
+  --c-success-border: rgba(16, 185, 129, 0.25);
 
-  /* --- Estados de pedido --- */
-  --estado-borrador:     #8b9ab8;
-  --estado-confirmado:   #6c8ef5;
-  --estado-produccion:   #f5a623;
-  --estado-listo:        #34c97d;
-  --estado-entregado:    #5bd4f5;
-  --estado-cancelado:    #f55b5b;
+  --c-warning:        #f59e0b;
+  --c-warning-hover:  #d97706;
+  --c-warning-soft:   rgba(245, 158, 11, 0.12);
+  --c-warning-border: rgba(245, 158, 11, 0.25);
 
-  /* --- Tipografía --- */
-  --c-text:        #e8edf8;
-  --c-text-2:      #9aadcc;
-  --c-text-3:      #6b7fa0;
-  --c-text-disabled:#4a5870;
+  --c-danger:         #ef4444;
+  --c-danger-hover:   #dc2626;
+  --c-danger-soft:    rgba(239, 68, 68, 0.12);
+  --c-danger-border:  rgba(239, 68, 68, 0.25);
 
-  /* --- Sidebar --- */
-  --sidebar-w:     240px;
-  --sidebar-w-collapsed: 64px;
+  --c-info:           #06b6d4;
+  --c-info-hover:     #0891b2;
+  --c-info-soft:      rgba(6, 182, 212, 0.12);
+  --c-info-border:    rgba(6, 182, 212, 0.25);
 
-  /* --- Spacing --- */
+  /* --- Estados de Pedido con Alto Contraste --- */
+  --estado-borrador:     #94a3b8;
+  --estado-confirmado:   #3875f6;
+  --estado-produccion:   #f59e0b;
+  --estado-listo:        #10b981;
+  --estado-entregado:    #06b6d4;
+  --estado-cancelado:    #ef4444;
+
+  /* --- Tipografía y Escala de Contraste WCAG AAA --- */
+  --c-text:           #f8fafc;
+  --c-text-2:         #cbd5e1;
+  --c-text-3:         #8295b5;
+  --c-text-disabled:  #475569;
+
+  /* --- Dimensiones de Layout --- */
+  --sidebar-w:           252px;
+  --sidebar-w-collapsed: 68px;
+  --header-h:            64px;
+
+  /* --- Spacing Escalonado (Base 4/8px) --- */
+  --sp-2xs: 2px;
   --sp-xs:  4px;
   --sp-sm:  8px;
   --sp-md:  16px;
   --sp-lg:  24px;
   --sp-xl:  32px;
   --sp-2xl: 48px;
+  --sp-3xl: 64px;
 
-  /* --- Border radius --- */
+  /* --- Radios de Curvatura --- */
+  --r-xs:   4px;
   --r-sm:   6px;
   --r-md:   10px;
   --r-lg:   14px;
   --r-xl:   20px;
+  --r-2xl:  24px;
   --r-full: 9999px;
 
-  /* --- Shadows --- */
-  --sh-sm:  0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --sh-md:  0 4px 12px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.2);
-  --sh-lg:  0 8px 24px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.25);
-  --sh-glow:0 0 20px rgba(108,142,245,0.25);
+  /* --- Sombras Multicapa y Profundidad --- */
+  --sh-xs:   0 1px 2px rgba(0, 0, 0, 0.35);
+  --sh-sm:   0 2px 5px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --sh-md:   0 6px 16px -2px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
+  --sh-lg:   0 14px 32px -4px rgba(0, 0, 0, 0.55), 0 6px 16px -3px rgba(0, 0, 0, 0.35);
+  --sh-xl:   0 24px 48px -8px rgba(0, 0, 0, 0.65), 0 12px 24px -4px rgba(0, 0, 0, 0.4);
+  --sh-glow: 0 0 28px -2px rgba(56, 117, 246, 0.35);
+  --sh-inner: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
-  /* --- Transitions --- */
-  --t-fast:  0.12s ease;
-  --t-base:  0.2s ease;
-  --t-slow:  0.35s ease;
+  /* --- Transiciones y Curvas de Aceleración --- */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast:      0.14s var(--ease-smooth);
+  --t-base:      0.22s var(--ease-smooth);
+  --t-slow:      0.35s var(--ease-spring);
 
-  /* --- Font --- */
-  --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* --- Tipografías del Sistema --- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* --- Font sizes --- */
+  /* --- Escala Tipográfica Balanceada --- */
+  --fs-2xs:  10px;
   --fs-xs:   11px;
-  --fs-sm:   12px;
+  --fs-sm:   13px;
   --fs-base: 14px;
   --fs-md:   15px;
   --fs-lg:   18px;
   --fs-xl:   22px;
   --fs-2xl:  28px;
-  --fs-3xl:  36px;
+  --fs-3xl:  34px;
 
-  /* --- Z-index --- */
-  --z-sidebar:  100;
+  /* --- Z-Index de Capas --- */
+  --z-base:     1;
   --z-header:   90;
+  --z-sidebar:  100;
+  --z-dropdown: 150;
   --z-modal:    200;
   --z-toast:    300;
-  --z-dropdown: 150;
 }

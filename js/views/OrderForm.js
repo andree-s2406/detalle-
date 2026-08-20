@@ -70,7 +70,7 @@ export function renderOrderForm(params = {}) {
         <!-- Datos del pedido -->
         <div class="card mb-md">
           <div class="card-header">
-            <span class="card-title">📄 Datos del pedido</span>
+            <span class="card-title">${icon('orders')} Datos del pedido</span>
           </div>
           <div class="form-row cols-3">
             <div class="form-group" style="margin:0;">
@@ -121,14 +121,14 @@ export function renderOrderForm(params = {}) {
           </div>
           <div class="form-row">
             <div class="form-group" style="margin:0;">
-              <label class="form-label">💵 Saldo en Efectivo / Negro ($)</label>
+              <label class="form-label">Saldo en Efectivo / Negro ($)</label>
               <input type="number" class="form-control" id="of-saldo-anterior-efectivo"
                      value="${_order?.saldo_anterior_efectivo || (_order?.saldo_anterior_tipo === 'efectivo' ? _order.saldo_anterior_monto : '') || ''}"
                      placeholder="0.00" step="0.01" min="0">
               <span class="form-hint">Suma al saldo sin factura</span>
             </div>
             <div class="form-group" style="margin:0;">
-              <label class="form-label">🧾 Saldo en Blanco / Facturado ($)</label>
+              <label class="form-label">Saldo en Blanco / Facturado ($)</label>
               <input type="number" class="form-control" id="of-saldo-anterior-blanco"
                      value="${_order?.saldo_anterior_blanco || (_order?.saldo_anterior_tipo === 'blanco' ? _order.saldo_anterior_monto : '') || ''}"
                      placeholder="0.00" step="0.01" min="0">
@@ -195,8 +195,8 @@ function _renderItemRow(item) {
 
   // Indicador de precio histórico vs nuevo
   const precioIndicator = (!item._isNew && _order)
-    ? `<div style="font-size:10px;color:var(--c-text-3);margin-top:2px;">📌 Histórico</div>`
-    : `<div style="font-size:10px;color:var(--c-accent);margin-top:2px;">⚡ Actual</div>`;
+    ? `<div style="font-size:10px;color:var(--c-text-3);margin-top:2px;">Histórico</div>`
+    : `<div style="font-size:10px;color:var(--c-accent);margin-top:2px;">Actual</div>`;
 
   return `
     <div class="order-item-row" id="item-row-${item._key}" data-key="${item._key}">
