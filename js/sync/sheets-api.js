@@ -105,13 +105,13 @@ export const SheetsApi = {
   /**
    * Reemplazar todo el contenido de una hoja
    */
-  async clearAndReplace(sheetName, values) {
-    const range = `${sheetName}!A1:Z5000`;
+  async clearAndReplace(sheetName, values, startCell = 'A1') {
+    const range = `${sheetName}!${startCell}:Z5000`;
     // 1. Limpiar hoja
     await sheetsFetch(`/values/${encodeURIComponent(range)}:clear`, { method: 'POST' });
     // 2. Escribir nuevos valores
     if (values && values.length > 0) {
-      await this.updateValues(`${sheetName}!A1`, values);
+      await this.updateValues(`${sheetName}!${startCell}`, values);
     }
   }
 };

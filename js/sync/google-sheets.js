@@ -25,6 +25,12 @@ export const GoogleSheetsSync = {
    * Transacción Local Primero + Sync en Drive + Rollback ante error
    */
   async executeWithDriveSync({ localAction, driveSyncAction }) {
+    // Antes de cambiar la copia local, se traen automaticamente los cambios
+    // hechos en Google Sheets desde cualquier otra computadora.
+    if (isConnected()) {
+      await this.importAllFromSheets();
+    }
+
     const snapshot = createLocalSnapshot();
     let localResult = null;
 
@@ -150,12 +156,13 @@ export const GoogleSheetsSync = {
       const slotCount = Math.max(MIN_ORDER_SLOTS, displayRows.length);
       for (let i = 0; i < slotCount; i++) {
         const item = displayRows[i];
+        const rowLabel = i === 0 ? (o.fecha || '') : (i === 1 ? `Pedido #${String(o.numero).padStart(4, '0')}` : '');
         if (item) {
           if (item.isProduct && typeof item.cantidad === 'number') {
             totalCantidad += item.cantidad;
           }
           rows.push([
-            i === 0 ? (o.fecha || '') : '',
+            rowLabel,
             item.descripcion || '',
             item.color || '',
             item.cantidad !== '' ? item.cantidad : '',
@@ -163,7 +170,7 @@ export const GoogleSheetsSync = {
             item.subtotal || 0
           ]);
         } else {
-          rows.push(['', '', '', '', '', '']);
+          rows.push([rowLabel, '', '', '', '', '']);
         }
       }
 
@@ -189,9 +196,8 @@ export const GoogleSheetsSync = {
     const payments = getAllPayments();
     const MIN_BALANCE_SLOTS = 21;
 
-    const rows = [
-      ['Fecha', 'Saldo sin Factura', 'Saldo Facturado', '', 'Fecha', 'Abono Efectivo', 'Abono en BLANCO', 'echeq', 'fecha cobro Echeq']
-    ];
+    // Los encabezados ya estan fijos en la fila 2 de la planilla.
+    const rows = [];
 
     // La tabla de saldos siempre muestra 21 casillas como minimo. El total se
     // coloca inmediatamente despues y baja una fila por cada pedido adicional.
@@ -211,8 +217,9 @@ export const GoogleSheetsSync = {
 
     // El resumen de abonos se ubica debajo de ambos listados para no tapar
     // un pago cuando haya mas de 21 registros.
-    const paymentSummaryRow = Math.max(balanceSlots, payments.length);
-    const bodyRows = paymentSummaryRow + 1;
+    const paymentTotalRow = Math.max(balanceSlots, payments.length);
+    const paymentPendingRow = paymentTotalRow + 1;
+    const bodyRows = paymentPendingRow + 1;
 
     for (let i = 0; i < bodyRows; i++) {
       const o = orders[i];
@@ -240,7 +247,13 @@ export const GoogleSheetsSync = {
         colI = p.tipo_pago === 'echeq'    ? (p.fecha_cobro || '') : '';
       }
 
-      if (i === paymentSummaryRow) {
+      if (i === paymentTotalRow) {
+        colE = 'TOTAL ABONADO';
+        colF = totalAbonoEfectivo;
+        colG = totalAbonoBlanco;
+      }
+
+      if (i === paymentPendingRow) {
         colE = 'PENDIENTE';
         colF = pendienteEfectivo;
         colG = pendienteBlanco;
@@ -249,7 +262,8 @@ export const GoogleSheetsSync = {
       rows.push([colA, colB, colC, '', colE, colF, colG, colH, colI]);
     }
 
-    await SheetsApi.clearAndReplace('Pagos', rows);
+    // Las filas 1 y 2 contienen los titulos y encabezados fijos de la planilla.
+    await SheetsApi.clearAndReplace('Pagos', rows, 'A3');
   },
 
   /**
@@ -260,6 +274,7 @@ export const GoogleSheetsSync = {
       throw new Error('Google Drive no está conectado. Autorizá el acceso desde Configuración.');
     }
 
+    await this.importAllFromSheets();
     _lastSyncStatus = 'syncing';
     try {
       await this.syncCatalogSheet();
@@ -306,6 +321,8 @@ export const GoogleSheetsSync = {
               run(`INSERT INTO products (id, nombre, precio, activo, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`,
                 [uuid(), prodNombre, prodPrecio, now, now]);
               importedProducts++;
+            } else {
+              run(`UPDATE products SET precio = ?, updated_at = ? WHERE id = ?`, [prodPrecio, nowISO(), existingP.id]);
             }
           }
 
@@ -334,14 +351,16 @@ export const GoogleSheetsSync = {
         let currentFecha = todayISO();
         let currentSaldoEfectivo = 0;
         let currentSaldoBlanco = 0;
+        let currentSheetOrderNumber = null;
 
         const flushCurrentOrder = () => {
-          if (_saveImportedOrder(currentFecha, currentOrderItems, currentSaldoEfectivo, currentSaldoBlanco)) {
+          if (_saveImportedOrder(currentFecha, currentOrderItems, currentSaldoEfectivo, currentSaldoBlanco, currentSheetOrderNumber)) {
             importedOrders++;
           }
           currentOrderItems = [];
           currentSaldoEfectivo = 0;
           currentSaldoBlanco = 0;
+          currentSheetOrderNumber = null;
         };
 
         for (let i = 0; i < descOrderRows.length; i++) {
@@ -350,6 +369,8 @@ export const GoogleSheetsSync = {
 
           const colA = String(row[0] || '').trim();
           const colB = String(row[1] || '').trim();
+          const orderNumberMatch = colA.match(/^pedido\s*#?\s*(\d+)$/i);
+          if (orderNumberMatch) currentSheetOrderNumber = Number(orderNumberMatch[1]);
 
           // Saltear encabezado de membrete o de pedido
           if (colA.toLowerCase() === 'fecha' || colB.toLowerCase() === 'descripcion' || colB.includes('Pulguitas') || colB.includes('Cuit')) {
@@ -365,8 +386,8 @@ export const GoogleSheetsSync = {
           const normalizedDescription = colB.toLowerCase();
           const isPlaceholder = !colB || normalizedDescription === '0' || normalizedDescription === '-' || normalizedDescription === '—';
           if (!isPlaceholder && normalizedDescription !== 'descripcion') {
-            if (colA && colA.length >= 8) {
-              currentFecha = colA;
+            if (_isSheetDate(colA)) {
+              currentFecha = _normalizeSheetDate(colA);
             }
 
             // Estas lineas ya son un saldo completo: no son productos y no
@@ -413,7 +434,13 @@ export const GoogleSheetsSync = {
           if (!row || row.length === 0) continue;
 
           const fecha = String(row[0] || '').trim();
-          if (!fecha || fecha.toLowerCase() === 'fecha') continue;
+          const normalizedFecha = fecha.toLowerCase();
+          // Las filas de resumen de la exportacion no son pagos. Solo se
+          // importan filas con fecha real para evitar duplicar totales.
+          const isDate = /^\d{4}-\d{2}-\d{2}$/.test(fecha) || /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(fecha);
+          if (!isDate || normalizedFecha === 'fecha' ||
+              normalizedFecha === 'total abonado' ||
+              normalizedFecha === 'pendiente') continue;
 
           const efectivo = parseCurrency(row[1]);
           const blanco   = parseCurrency(row[2]);
@@ -429,6 +456,15 @@ export const GoogleSheetsSync = {
 
           for (const item of pmtList) {
             if (item.importe > 0) {
+              const normalizedPaymentDate = _normalizeSheetDate(fecha);
+              const existingPayment = queryOne(`
+                SELECT id FROM payments
+                WHERE fecha = ? AND tipo_pago = ? AND ABS(importe - ?) < 0.005
+                  AND COALESCE(fecha_cobro, '') = ?
+                LIMIT 1
+              `, [normalizedPaymentDate, item.tipo, item.importe, item.cobro]);
+              if (existingPayment) continue;
+
               // Asignar al primer pedido con saldo pendiente
               const openOrder = queryOne(`
                 SELECT o.id, o.numero FROM orders o
@@ -439,7 +475,7 @@ export const GoogleSheetsSync = {
               if (openOrder) {
                 run(`INSERT INTO payments (id, order_id, fecha, tipo_pago, importe, fecha_cobro, observaciones, created_at)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                  [uuid(), openOrder.id, fecha, item.tipo, item.importe, item.cobro, 'Importado de Google Sheets', nowISO()]);
+                  [uuid(), openOrder.id, normalizedPaymentDate, item.tipo, item.importe, item.cobro, 'Importado de Google Sheets', nowISO()]);
                 importedPayments++;
               }
             }
@@ -467,7 +503,7 @@ export const GoogleSheetsSync = {
   }
 };
 
-function _saveImportedOrder(fecha, items, saldoAnteriorEfectivo = 0, saldoAnteriorBlanco = 0) {
+function _saveImportedOrder(fecha, items, saldoAnteriorEfectivo = 0, saldoAnteriorBlanco = 0, sheetOrderNumber = null) {
   const validItems = items.filter(item =>
     String(item.producto_nombre_historico || '').trim() &&
     Number(item.cantidad) > 0 && Number(item.precio_unitario_historico) > 0
@@ -479,10 +515,20 @@ function _saveImportedOrder(fecha, items, saldoAnteriorEfectivo = 0, saldoAnteri
 
   // Evitar pedidos vacios y reimportaciones del mismo pedido.
   if ((validItems.length === 0 && sEfectivo <= 0 && sBlanco <= 0) || total <= 0) return false;
-  if (_importedOrderAlreadyExists(fecha, total, validItems, sEfectivo, sBlanco)) return false;
+  const matchingOrder = _findIdenticalOrder(fecha, validItems, sEfectivo, sBlanco);
+  if (matchingOrder) {
+    _applySheetOrderNumber(matchingOrder.id, matchingOrder.numero, sheetOrderNumber);
+    return false;
+  }
+
+  const numberedOrder = _findOrderByNumber(sheetOrderNumber);
+  if (numberedOrder) {
+    _replaceOrderFromSheet(numberedOrder.id, fecha, validItems, sEfectivo, sBlanco);
+    return false;
+  }
 
   const row = queryOne(`SELECT MAX(numero) as maxNum FROM orders`);
-  const numero = (row?.maxNum ?? 0) + 1;
+  const numero = _isValidOrderNumber(sheetOrderNumber) ? sheetOrderNumber : (row?.maxNum ?? 0) + 1;
   const id = uuid();
   const now = nowISO();
 
@@ -517,15 +563,23 @@ function _saveImportedOrder(fecha, items, saldoAnteriorEfectivo = 0, saldoAnteri
   return true;
 }
 
-function _importedOrderAlreadyExists(fecha, total, items, saldoAnteriorEfectivo, saldoAnteriorBlanco) {
+function _findIdenticalOrder(fecha, items, saldoAnteriorEfectivo, saldoAnteriorBlanco) {
   const candidates = queryAll(`
-    SELECT id, saldo_anterior_efectivo, saldo_anterior_blanco FROM orders
-    WHERE fecha = ? AND ABS(total - ?) < 0.005
-  `, [fecha, total]);
+    SELECT id, numero, saldo_anterior_efectivo, saldo_anterior_blanco,
+           saldo_anterior_monto, saldo_anterior_tipo
+    FROM orders
+    WHERE fecha = ?
+  `, [fecha]);
 
-  return candidates.some(candidate => {
-    if (Math.abs((Number(candidate.saldo_anterior_efectivo) || 0) - saldoAnteriorEfectivo) >= 0.005 ||
-        Math.abs((Number(candidate.saldo_anterior_blanco) || 0) - saldoAnteriorBlanco) >= 0.005) {
+  return candidates.find(candidate => {
+    const legacyAmount = Number(candidate.saldo_anterior_monto) || 0;
+    const candidateEfectivo = Number(candidate.saldo_anterior_efectivo) ||
+      (candidate.saldo_anterior_tipo === 'efectivo' ? legacyAmount : 0);
+    const candidateBlanco = Number(candidate.saldo_anterior_blanco) ||
+      (candidate.saldo_anterior_tipo === 'blanco' ? legacyAmount : 0);
+
+    if (Math.abs(candidateEfectivo - saldoAnteriorEfectivo) >= 0.005 ||
+        Math.abs(candidateBlanco - saldoAnteriorBlanco) >= 0.005) {
       return false;
     }
 
@@ -543,4 +597,82 @@ function _importedOrderAlreadyExists(fecha, total, items, saldoAnteriorEfectivo,
         Math.abs(Number(existing.precio_unitario_historico) - Number(imported.precio_unitario_historico)) < 0.005;
     });
   });
+}
+
+function _findOrderByNumber(number) {
+  if (!_isValidOrderNumber(number)) return null;
+  return queryOne(`SELECT id FROM orders WHERE numero = ?`, [number]);
+}
+
+function _isValidOrderNumber(number) {
+  return Number.isInteger(Number(number)) && Number(number) > 0;
+}
+
+function _applySheetOrderNumber(orderId, currentNumber, sheetOrderNumber) {
+  if (!_isValidOrderNumber(sheetOrderNumber) || Number(currentNumber) === Number(sheetOrderNumber)) return;
+
+  transaction(() => {
+    const conflict = queryOne(`SELECT id FROM orders WHERE numero = ? AND id != ?`, [sheetOrderNumber, orderId]);
+    if (conflict) {
+      const next = queryOne(`SELECT COALESCE(MAX(numero), 0) + 1 AS numero FROM orders`);
+      run(`UPDATE orders SET numero = ?, updated_at = ? WHERE id = ?`, [next.numero, nowISO(), conflict.id]);
+    }
+    run(`UPDATE orders SET numero = ?, updated_at = ? WHERE id = ?`, [sheetOrderNumber, nowISO(), orderId]);
+  });
+}
+
+function _replaceOrderFromSheet(orderId, fecha, items, saldoAnteriorEfectivo, saldoAnteriorBlanco) {
+  const subtotalItems = items.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
+  const total = subtotalItems + saldoAnteriorEfectivo + saldoAnteriorBlanco;
+  const { sinFactura: baseSinFactura, facturado: baseFacturado } = calcularImportes(subtotalItems);
+  const saldoAnteriorMonto = saldoAnteriorEfectivo + saldoAnteriorBlanco;
+  const saldoAnteriorTipo = saldoAnteriorEfectivo > 0 && saldoAnteriorBlanco > 0 ? 'mixto' :
+    (saldoAnteriorEfectivo > 0 ? 'efectivo' : (saldoAnteriorBlanco > 0 ? 'blanco' : ''));
+
+  transaction(() => {
+    run(`
+      UPDATE orders
+      SET fecha = ?, total = ?, importe_sin_factura = ?, importe_facturado = ?,
+          saldo_anterior_monto = ?, saldo_anterior_tipo = ?,
+          saldo_anterior_efectivo = ?, saldo_anterior_blanco = ?, updated_at = ?
+      WHERE id = ?
+    `, [
+      fecha, total, baseSinFactura + saldoAnteriorEfectivo, baseFacturado + saldoAnteriorBlanco,
+      saldoAnteriorMonto, saldoAnteriorTipo, saldoAnteriorEfectivo, saldoAnteriorBlanco,
+      nowISO(), orderId
+    ]);
+
+    run(`DELETE FROM order_items WHERE order_id = ?`, [orderId]);
+    items.forEach((item, index) => {
+      const product = queryOne(`SELECT id FROM products WHERE LOWER(nombre) = LOWER(?)`, [item.producto_nombre_historico]);
+      run(`
+        INSERT INTO order_items (id, order_id, product_id, producto_nombre_historico, color, cantidad, precio_unitario_historico, subtotal, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        uuid(), orderId, product?.id || null, item.producto_nombre_historico, item.color,
+        item.cantidad, item.precio_unitario_historico, item.subtotal, index
+      ]);
+    });
+  });
+}
+
+function _normalizeSheetDate(value) {
+  const date = String(value || '').trim();
+  const iso = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return date;
+
+  // La planilla usa formato argentino dd/mm/aaaa. Se guarda todo en ISO para
+  // que el detector de pedidos existentes compare la misma fecha real.
+  const local = date.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (!local) return date;
+
+  const day = local[1].padStart(2, '0');
+  const month = local[2].padStart(2, '0');
+  const year = local[3].length === 2 ? `20${local[3]}` : local[3];
+  return `${year}-${month}-${day}`;
+}
+
+function _isSheetDate(value) {
+  const date = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) || /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(date);
 }
