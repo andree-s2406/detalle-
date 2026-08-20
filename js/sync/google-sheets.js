@@ -515,7 +515,7 @@ function _saveImportedOrder(fecha, items, saldoAnteriorEfectivo = 0, saldoAnteri
 
   // Evitar pedidos vacios y reimportaciones del mismo pedido.
   if ((validItems.length === 0 && sEfectivo <= 0 && sBlanco <= 0) || total <= 0) return false;
-  const matchingOrder = _findIdenticalOrder(fecha, validItems, sEfectivo, sBlanco);
+  const matchingOrder = _findIdenticalOrder(fecha, validItems, sEfectivo, sBlanco, sheetOrderNumber);
   if (matchingOrder) {
     _applySheetOrderNumber(matchingOrder.id, matchingOrder.numero, sheetOrderNumber);
     return false;
@@ -563,7 +563,7 @@ function _saveImportedOrder(fecha, items, saldoAnteriorEfectivo = 0, saldoAnteri
   return true;
 }
 
-function _findIdenticalOrder(fecha, items, saldoAnteriorEfectivo, saldoAnteriorBlanco) {
+function _findIdenticalOrder(fecha, items, saldoAnteriorEfectivo, saldoAnteriorBlanco, sheetOrderNumber) {
   const candidates = queryAll(`
     SELECT id, numero, saldo_anterior_efectivo, saldo_anterior_blanco,
            saldo_anterior_monto, saldo_anterior_tipo
@@ -571,7 +571,7 @@ function _findIdenticalOrder(fecha, items, saldoAnteriorEfectivo, saldoAnteriorB
     WHERE fecha = ?
   `, [fecha]);
 
-  return candidates.find(candidate => {
+  const matches = candidates.filter(candidate => {
     const legacyAmount = Number(candidate.saldo_anterior_monto) || 0;
     const candidateEfectivo = Number(candidate.saldo_anterior_efectivo) ||
       (candidate.saldo_anterior_tipo === 'efectivo' ? legacyAmount : 0);
@@ -597,6 +597,10 @@ function _findIdenticalOrder(fecha, items, saldoAnteriorEfectivo, saldoAnteriorB
         Math.abs(Number(existing.precio_unitario_historico) - Number(imported.precio_unitario_historico)) < 0.005;
     });
   });
+
+  // Si ya existe el mismo pedido con el mismo numero de la hoja, es la copia
+  // correcta. No se renumera aunque haya otra copia identica con otro numero.
+  return matches.find(candidate => Number(candidate.numero) === Number(sheetOrderNumber)) || matches[0] || null;
 }
 
 function _findOrderByNumber(number) {
