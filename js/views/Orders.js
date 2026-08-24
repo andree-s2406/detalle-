@@ -50,7 +50,7 @@ export function renderOrders() {
                placeholder="Buscar por número o notas..." value="${escapeHtml(_filters.search)}">
       </div>
       <div class="filter-group">
-        <select class="form-control" id="filter-estado" style="min-width:160px;">${estadoOptions}</select>
+        <select class="form-control" id="filter-estado">${estadoOptions}</select>
         <input type="date" class="form-control" id="filter-desde" value="${_filters.fechaDesde}" title="Desde">
         <input type="date" class="form-control" id="filter-hasta" value="${_filters.fechaHasta}" title="Hasta">
         <button class="btn btn-ghost btn-sm" id="btn-clear-filters">✕ Limpiar</button>
@@ -112,21 +112,21 @@ function _renderOrdersTable() {
     const saldoClass = saldo > 0 ? 'text-danger' : 'text-success';
 
     return `
-      <tr style="cursor:pointer;" onclick="window._viewOrder('${o.id}')">
-        <td><strong style="color:var(--c-accent);font-family:var(--font-mono);">${formatOrderNumber(o.numero)}</strong></td>
+      <tr class="tr-clickable" onclick="window._viewOrder('${o.id}')">
+        <td><strong class="text-accent td-mono">${formatOrderNumber(o.numero)}</strong></td>
         <td>${formatDate(o.fecha)}</td>
         <td>${stateBadge(o.estado)}</td>
-        <td class="td-right td-mono">${formatCurrency(o.total)}</td>
-        <td class="td-right td-mono" style="color:var(--c-warning);">${formatCurrency(o.importe_sin_factura)}</td>
-        <td class="td-right td-mono" style="color:var(--c-info);">${formatCurrency(o.importe_facturado)}</td>
+        <td class="td-right td-mono font-bold">${formatCurrency(o.total)}</td>
+        <td class="td-right td-mono text-warning">${formatCurrency(o.importe_sin_factura)}</td>
+        <td class="td-right td-mono text-info">${formatCurrency(o.importe_facturado)}</td>
         <td class="td-right td-mono text-success">${formatCurrency(o.total_pagado || 0)}</td>
-        <td class="td-right td-mono ${saldoClass}">${formatCurrency(Math.abs(saldo))}</td>
+        <td class="td-right td-mono ${saldoClass} font-semibold">${formatCurrency(Math.abs(saldo))}</td>
         <td class="text-muted text-sm text-center">
           ${o.total_items || 0} ítem(s)
-          ${o.saldo_anterior_monto > 0 ? `<div style="font-size:10px;color:var(--c-accent);margin-top:2px;">Saldo ant. (${o.saldo_anterior_tipo === 'efectivo' ? 'Efectivo' : 'Blanco'})</div>` : ''}
+          ${o.saldo_anterior_monto > 0 ? `<div class="text-xs text-accent mt-xs">Saldo ant. (${o.saldo_anterior_tipo === 'efectivo' ? 'Efectivo' : 'Blanco'})</div>` : ''}
         </td>
         <td class="td-actions" onclick="event.stopPropagation()">
-          <div class="flex gap-sm">
+          <div class="flex gap-sm flex-end">
             <button class="btn btn-ghost btn-icon btn-sm" title="Ver" onclick="window._viewOrder('${o.id}')">
               ${icon('eye', '', 14)}
             </button>
@@ -162,7 +162,7 @@ function _renderOrdersTable() {
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="margin-top:var(--sp-sm);font-size:var(--fs-sm);color:var(--c-text-3);">${orders.length} pedido(s)</div>
+    <div class="text-muted text-sm mt-sm">${orders.length} pedido(s)</div>
   `;
 }
 

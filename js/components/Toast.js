@@ -32,7 +32,7 @@ export const Toast = {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     toast.innerHTML = `
-      <span class="toast-icon" style="display:inline-flex;align-items:center;">${iconSvg}</span>
+      <span class="toast-icon">${iconSvg}</span>
       <div class="toast-content">
         ${title ? `<div class="toast-title">${title}</div>` : ''}
         ${message ? `<div class="toast-message">${message}</div>` : ''}

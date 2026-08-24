@@ -30,7 +30,7 @@ export function renderSettings() {
       </div>
     </div>
 
-    <div class="grid grid-2" style="align-items:start;">
+    <div class="grid grid-2">
       
       <!-- Panel de cálculos -->
       <div class="card mb-md">
@@ -40,25 +40,25 @@ export function renderSettings() {
         <div class="config-item">
           <div class="config-label">Porcentaje Sin Factura (%)</div>
           <div class="config-value">
-            <input type="number" class="form-control" id="cfg-pct-sf" value="${pctSF}" min="0" max="100" style="width: 100px; text-align: right;">
+            <input type="number" class="form-control" id="cfg-pct-sf" value="${pctSF}" min="0" max="100">
             <span>%</span>
           </div>
         </div>
         <div class="config-item">
           <div class="config-label">Porcentaje Facturado (%)</div>
           <div class="config-value">
-            <input type="number" class="form-control" id="cfg-pct-f" value="${pctF}" min="0" max="100" style="width: 100px; text-align: right;">
+            <input type="number" class="form-control" id="cfg-pct-f" value="${pctF}" min="0" max="100">
             <span>%</span>
           </div>
         </div>
         <div class="config-item">
           <div class="config-label">Recargo Facturado (IVA / etc) (%)</div>
           <div class="config-value">
-            <input type="number" class="form-control" id="cfg-recargo" value="${recargo}" step="0.1" min="0" max="200" style="width: 100px; text-align: right;">
+            <input type="number" class="form-control" id="cfg-recargo" value="${recargo}" step="0.1" min="0" max="200">
             <span>%</span>
           </div>
         </div>
-        <div class="mt-md flex justify-end">
+        <div class="mt-md flex flex-end">
           <button class="btn btn-primary" id="btn-save-config">
             ${icon('save')} Guardar Porcentajes
           </button>
@@ -82,17 +82,17 @@ export function renderSettings() {
           <label class="form-label">Google OAuth Client ID</label>
           <input type="text" class="form-control" id="cfg-google-client-id" value="${escapeHtml(clientId)}"
                  placeholder="Ej: 123456789-abc.apps.googleusercontent.com">
-          <div class="text-muted text-sm mt-sm">ID de cliente creado en Google Cloud Console.</div>
+          <div class="text-muted text-sm mt-xs">ID de cliente creado en Google Cloud Console.</div>
         </div>
 
         <div class="form-group">
           <label class="form-label">ID de la Planilla Google Sheets (Spreadsheet ID)</label>
           <input type="text" class="form-control" id="cfg-google-sheet-id" value="${escapeHtml(spreadsheetId)}"
                  placeholder="Ej: 1BxiMVs0XRnt3kg_IpHB54n56789...">
-          <div class="text-muted text-sm mt-sm">El ID que figura en la URL de tu planilla de Google Drive.</div>
+          <div class="text-muted text-sm mt-xs">El ID que figura en la URL de tu planilla de Google Drive.</div>
         </div>
 
-        <div class="flex gap-md mt-md" style="flex-wrap:wrap;">
+        <div class="flex gap-md mt-md">
           ${driveConnected ? `
             <button class="btn btn-danger" id="btn-drive-disconnect">
               ${icon('unlink')} Desconectar Google Drive
@@ -115,20 +115,20 @@ export function renderSettings() {
       </div>
 
       <!-- Copia de seguridad y base de datos -->
-      <div class="card" style="grid-column: 1 / -1;">
+      <div class="card grid-full">
         <div class="card-header">
           <span class="card-title">${icon('database')} Base de Datos Local (SQLite)</span>
         </div>
         <p class="text-muted text-sm mb-md">
           Tus datos se guardan automáticamente de forma local en tu navegador (IndexedDB). Podés descargar una copia de seguridad para resguardar tu información o para moverla a otra computadora.
         </p>
-        <div class="flex gap-md" style="flex-wrap: wrap;">
+        <div class="flex gap-md">
           <button class="btn btn-secondary" id="btn-db-export">
             ${icon('download')} Exportar Base de Datos (.db)
           </button>
-          <label class="btn btn-ghost" style="position:relative; cursor:pointer;">
+          <label class="btn btn-ghost pointer">
             ${icon('upload')} Importar Base de Datos (.db)
-            <input type="file" id="btn-db-import-file" accept=".db" style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden;">
+            <input type="file" id="btn-db-import-file" accept=".db" class="hidden">
           </label>
         </div>
       </div>

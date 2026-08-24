@@ -64,24 +64,24 @@ export function renderOrderForm(params = {}) {
       </div>
     </div>
 
-    <div class="grid grid-2" style="gap:var(--sp-lg);align-items:start;">
+    <div class="grid grid-1">
       <!-- Columna principal -->
-      <div style="grid-column:1/-1;">
+      <div>
         <!-- Datos del pedido -->
         <div class="card mb-md">
           <div class="card-header">
             <span class="card-title">${icon('orders')} Datos del pedido</span>
           </div>
           <div class="form-row cols-3">
-            <div class="form-group" style="margin:0;">
+            <div class="form-group mb-0">
               <label class="form-label required">Fecha</label>
               <input type="date" class="form-control" id="of-fecha" value="${_order?.fecha ?? todayISO()}" required>
             </div>
-            <div class="form-group" style="margin:0;">
+            <div class="form-group mb-0">
               <label class="form-label required">Estado</label>
               <select class="form-control" id="of-estado">${estadoOptions}</select>
             </div>
-            <div class="form-group" style="margin:0;">
+            <div class="form-group mb-0">
               <label class="form-label">Notas / Referencia</label>
               <input type="text" class="form-control" id="of-notas" value="${escapeHtml(_order?.notas ?? '')}" placeholder="Cliente, referencia, etc.">
             </div>
@@ -92,7 +92,7 @@ export function renderOrderForm(params = {}) {
         <div class="card mb-md">
           <div class="card-header">
             <span class="card-title">${icon('products')} Productos</span>
-            ${isEdit ? '<span class="badge badge-confirmado" style="font-size:11px;">Los precios existentes NO se modifican</span>' : ''}
+            ${isEdit ? '<span class="badge badge-confirmado">Los precios existentes NO se modifican</span>' : ''}
           </div>
 
           <!-- Cabecera de la tabla de ítems -->
@@ -100,9 +100,9 @@ export function renderOrderForm(params = {}) {
             <div class="order-item-row order-item-header">
               <span>Producto</span>
               <span>Color</span>
-              <span style="text-align:center;">Cantidad</span>
-              <span style="text-align:right;">Precio unit.</span>
-              <span style="text-align:right;">Subtotal</span>
+              <span class="text-center">Cantidad</span>
+              <span class="text-right">Precio unit.</span>
+              <span class="text-right">Subtotal</span>
               <span></span>
             </div>
             <div id="items-rows"></div>
@@ -120,14 +120,14 @@ export function renderOrderForm(params = {}) {
             <span class="text-muted text-sm">Opcional — podés cargar efectivo, blanco o ambos</span>
           </div>
           <div class="form-row">
-            <div class="form-group" style="margin:0;">
+            <div class="form-group mb-0">
               <label class="form-label">Saldo en Efectivo / Negro ($)</label>
               <input type="number" class="form-control" id="of-saldo-anterior-efectivo"
                      value="${_order?.saldo_anterior_efectivo || (_order?.saldo_anterior_tipo === 'efectivo' ? _order.saldo_anterior_monto : '') || ''}"
                      placeholder="0.00" step="0.01" min="0">
               <span class="form-hint">Suma al saldo sin factura</span>
             </div>
-            <div class="form-group" style="margin:0;">
+            <div class="form-group mb-0">
               <label class="form-label">Saldo en Blanco / Facturado ($)</label>
               <input type="number" class="form-control" id="of-saldo-anterior-blanco"
                      value="${_order?.saldo_anterior_blanco || (_order?.saldo_anterior_tipo === 'blanco' ? _order.saldo_anterior_monto : '') || ''}"
@@ -168,7 +168,7 @@ function _renderAllItems() {
 
   if (_items.length === 0) {
     container.innerHTML = `
-      <div class="table-empty" style="padding:var(--sp-xl);">
+      <div class="table-empty">
         <div class="empty-icon">${icon('products', '', 36)}</div>
         <div class="empty-text">Agregá al menos un producto</div>
       </div>`;
@@ -195,8 +195,8 @@ function _renderItemRow(item) {
 
   // Indicador de precio histórico vs nuevo
   const precioIndicator = (!item._isNew && _order)
-    ? `<div style="font-size:10px;color:var(--c-text-3);margin-top:2px;">Histórico</div>`
-    : `<div style="font-size:10px;color:var(--c-accent);margin-top:2px;">Actual</div>`;
+    ? `<div class="text-xs text-muted mt-xs">Histórico</div>`
+    : `<div class="text-xs text-accent mt-xs">Actual</div>`;
 
   return `
     <div class="order-item-row" id="item-row-${item._key}" data-key="${item._key}">
@@ -218,16 +218,14 @@ function _renderItemRow(item) {
 
       <!-- Cantidad -->
       <div>
-        <input type="number" class="form-control form-control-sm" id="item-qty-${item._key}"
-               value="${item.cantidad}" min="1" step="1" style="text-align:center;">
+        <input type="number" class="form-control form-control-sm text-center" id="item-qty-${item._key}"
+               value="${item.cantidad}" min="1" step="1">
       </div>
 
       <!-- Precio unitario -->
       <div>
-        <input type="number" class="form-control form-control-sm" id="item-precio-${item._key}"
-               value="${item.precio_unitario_historico}" min="0" step="0.01"
-               style="text-align:right;"
-               ${!item._isNew ? 'style="background:rgba(108,142,245,0.05)"' : ''}>
+        <input type="number" class="form-control form-control-sm text-right" id="item-precio-${item._key}"
+               value="${item.precio_unitario_historico}" min="0" step="0.01">
         ${precioIndicator}
       </div>
 
@@ -237,9 +235,9 @@ function _renderItemRow(item) {
       </div>
 
       <!-- Eliminar -->
-      <div style="display:flex;justify-content:center;">
-        <button class="btn btn-ghost btn-icon btn-sm" title="Eliminar línea"
-                id="item-del-${item._key}" style="color:var(--c-danger);">${icon('trash', '', 14)}</button>
+      <div class="flex-center">
+        <button class="btn btn-ghost btn-icon btn-sm text-danger" title="Eliminar línea"
+                id="item-del-${item._key}">${icon('trash', '', 14)}</button>
       </div>
     </div>
   `;
@@ -405,15 +403,15 @@ function _renderTotals() {
         <span class="amount">${formatCurrency(subtotalItems)}</span>
       </div>
       ${sEf > 0 ? `
-        <div class="totals-row" style="background:rgba(245,166,35,0.08);border-radius:6px;padding:6px 12px;">
+        <div class="totals-row totals-row-warning-box">
           <span class="label">${icon('money', '', 14)} Saldo Anterior Efectivo (Negro)</span>
-          <span class="amount" style="color:var(--c-warning);font-weight:600;">+ ${formatCurrency(sEf)}</span>
+          <span class="amount text-warning font-semibold">+ ${formatCurrency(sEf)}</span>
         </div>
       ` : ''}
       ${sBl > 0 ? `
-        <div class="totals-row" style="background:rgba(91,212,245,0.08);border-radius:6px;padding:6px 12px;">
+        <div class="totals-row totals-row-info-box">
           <span class="label">${icon('invoice', '', 14)} Saldo Anterior en Blanco (Facturado)</span>
-          <span class="amount" style="color:var(--c-info);font-weight:600;">+ ${formatCurrency(sBl)}</span>
+          <span class="amount text-accent font-semibold">+ ${formatCurrency(sBl)}</span>
         </div>
       ` : ''}
       <div class="totals-row">

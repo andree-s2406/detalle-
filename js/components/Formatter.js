@@ -151,19 +151,30 @@ export function debounce(fn, delay = 300) {
 
 // --- Color dot HTML ---
 export const COLOR_PALETTE = {
-  'Gris':    '#8b9ab8',
-  'Beige':   '#c8b49a',
-  'Vision':  '#d4c4a0',
-  'Negro':   '#2a2a2a',
-  'Rojo':    '#e05555',
-  'Blanco':  '#e8edf8',
-  'Azul':    '#5b9af5',
-  'Verde':   '#34c97d',
-  'Natural': '#b8956a',
-  'Topo':    '#9a8472',
+  'Gris':    '#94a3b8',
+  'Beige':   '#d4b895',
+  'Vision':  '#e0cfb3',
+  'Negro':   '#21252d',
+  'Rojo':    '#ef4444',
+  'Blanco':  '#f8fafc',
+  'Azul':    '#3b82f6',
+  'Verde':   '#10b981',
+  'Natural': '#c29b71',
+  'Topo':    '#a38c7b',
 };
 
-export function colorDot(colorName) {
-  const bg = COLOR_PALETTE[colorName] || '#6b7fa0';
-  return `<span class="color-dot" style="background:${bg};border:1px solid rgba(255,255,255,0.15);" title="${escapeHtml(colorName)}"></span>`;
+export function colorSlug(name) {
+  if (!name) return 'default';
+  return String(name)
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '-');
 }
+
+export function colorDot(colorName) {
+  const slug = colorSlug(colorName);
+  return `<span class="color-dot color-dot-${slug}" title="${escapeHtml(colorName || '')}"></span>`;
+}
+

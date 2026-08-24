@@ -53,7 +53,7 @@ function _renderDetail(orderId) {
       <td class="td-right td-mono">
         ${formatCurrency(item.precio_unitario_historico)}
       </td>
-      <td class="td-right td-mono"><strong style="color:var(--c-text);">${formatCurrency(item.subtotal)}</strong></td>
+      <td class="td-right td-mono font-bold">${formatCurrency(item.subtotal)}</td>
     </tr>
   `).join('');
 
@@ -63,11 +63,11 @@ function _renderDetail(orderId) {
           <div>
             ${paymentBadge(p.tipo_pago)}
             <div class="text-xs text-muted mt-xs">${formatDate(p.fecha)}</div>
-            ${p.fecha_cobro ? `<div class="text-xs" style="color:var(--c-warning);margin-top:2px;">Cobro: ${formatDate(p.fecha_cobro)}</div>` : ''}
+            ${p.fecha_cobro ? `<div class="text-xs text-warning mt-xs">Cobro: ${formatDate(p.fecha_cobro)}</div>` : ''}
             ${p.observaciones ? `<div class="text-xs text-muted mt-xs">${escapeHtml(p.observaciones)}</div>` : ''}
           </div>
           <div class="payment-amount">${formatCurrency(p.importe)}</div>
-          <div class="flex gap-xs" style="margin-left:var(--sp-sm);">
+          <div class="flex gap-xs">
             <button class="btn btn-ghost btn-icon btn-sm" title="Editar pago" onclick="window._editPayment('${p.id}','${orderId}')">
               ${icon('edit', '', 14)}
             </button>
@@ -77,7 +77,7 @@ function _renderDetail(orderId) {
           </div>
         </div>
       `).join('')
-    : `<div class="text-muted text-sm text-center" style="padding:var(--sp-lg);">Sin pagos registrados aún</div>`;
+    : `<div class="text-muted text-sm text-center card p-md">Sin pagos registrados aún</div>`;
 
   view.innerHTML = `
     <div class="page-header">
@@ -106,7 +106,7 @@ function _renderDetail(orderId) {
             <span class="card-title">${icon('products')} Productos del pedido</span>
             <span class="text-muted text-sm">${order.items?.length || 0} ítem(s)</span>
           </div>
-          <div class="table-wrapper" style="border:none;box-shadow:none;">
+          <div class="table-wrapper">
             <table>
               <thead>
                 <tr>
@@ -128,7 +128,7 @@ function _renderDetail(orderId) {
         <div class="card">
           <div class="card-header">
             <span class="card-title">${icon('payments')} Pagos registrados</span>
-            <span class="text-success text-sm text-mono font-weight-600">${formatCurrency(totalPagado)} cobrado</span>
+            <span class="text-success text-sm td-mono font-semibold">${formatCurrency(totalPagado)} cobrado</span>
           </div>
           <div id="payments-list">${paymentsRows}</div>
         </div>
@@ -145,26 +145,26 @@ function _renderDetail(orderId) {
           <div class="payment-progress-container">
             <div class="payment-progress-label">
               <span>Progreso de cobro</span>
-              <strong style="color: ${pctCobrado === 100 ? 'var(--c-success)' : 'var(--c-accent-text)'}; font-family: var(--font-mono);">${pctCobrado}%</strong>
+              <strong class="${pctCobrado === 100 ? 'text-success' : 'text-accent'} td-mono font-bold">${pctCobrado}%</strong>
             </div>
             <div class="payment-progress-track">
               <div class="payment-progress-fill ${pctCobrado === 100 ? 'full' : ''}" style="width: ${pctCobrado}%;"></div>
             </div>
           </div>
 
-          <div class="totals-panel" style="background:transparent;border:none;padding:0;box-shadow:none;margin-top:0;">
+          <div class="totals-panel totals-panel-flat">
             <div class="totals-row">
               <span>Total del pedido</span>
               <span class="amount">${formatCurrency(order.total)}</span>
             </div>
             ${(order.saldo_anterior_efectivo > 0 || (order.saldo_anterior_tipo === 'efectivo' && order.saldo_anterior_monto > 0)) ? `
-              <div class="totals-row" style="background:var(--c-warning-soft);border-radius:var(--r-sm);padding:6px 10px;">
+              <div class="totals-row totals-row-warning-box">
                 <span>${icon('money', '', 14)} Saldo Anterior Efectivo</span>
                 <span class="amount text-warning">+ ${formatCurrency(order.saldo_anterior_efectivo || order.saldo_anterior_monto)}</span>
               </div>
             ` : ''}
             ${(order.saldo_anterior_blanco > 0 || (order.saldo_anterior_tipo === 'blanco' && order.saldo_anterior_monto > 0)) ? `
-              <div class="totals-row" style="background:var(--c-info-soft);border-radius:var(--r-sm);padding:6px 10px;">
+              <div class="totals-row totals-row-info-box">
                 <span>${icon('invoice', '', 14)} Saldo Anterior en Blanco</span>
                 <span class="amount text-accent">+ ${formatCurrency(order.saldo_anterior_blanco || order.saldo_anterior_monto)}</span>
               </div>
@@ -177,7 +177,7 @@ function _renderDetail(orderId) {
               <span>Facturado (30% + Rec.)</span>
               <span class="amount facturado">${formatCurrency(order.importe_facturado)}</span>
             </div>
-            <div class="divider" style="margin: var(--sp-sm) 0;"></div>
+            <div class="divider mt-sm mb-sm"></div>
             <div class="totals-row">
               <span>Total cobrado</span>
               <span class="amount text-success">${formatCurrency(totalPagado)}</span>
@@ -195,13 +195,13 @@ function _renderDetail(orderId) {
         ${order.notas ? `
           <div class="card mb-md">
             <div class="card-header"><span class="card-title">${icon('invoice')} Notas</span></div>
-            <p class="text-muted text-sm" style="line-height:1.6;">${escapeHtml(order.notas)}</p>
+            <p class="text-muted text-sm">${escapeHtml(order.notas)}</p>
           </div>
         ` : ''}
 
         <div class="card">
           <div class="card-header"><span class="card-title">${icon('clock')} Registro</span></div>
-          <div class="text-xs text-muted" style="line-height:1.6;">
+          <div class="text-xs text-muted">
             <div>Creado: ${formatDateTime(order.created_at)}</div>
             <div class="mt-xs">Última mod.: ${formatDateTime(order.updated_at)}</div>
           </div>
@@ -241,27 +241,27 @@ export function openPaymentForm(paymentId, orderId, onSave) {
     content: `
       <form id="payment-form">
         <div class="form-row">
-          <div class="form-group" style="margin:0;">
+          <div class="form-group mb-0">
             <label class="form-label required">Fecha</label>
             <input type="date" class="form-control" id="pmt-fecha" value="${existing?.fecha ?? todayISO()}" required>
           </div>
-          <div class="form-group" style="margin:0;">
+          <div class="form-group mb-0">
             <label class="form-label required">Tipo de pago</label>
             <select class="form-control" id="pmt-tipo">${tipoOptions}</select>
           </div>
         </div>
         <div class="form-row mt-md">
-          <div class="form-group" style="margin:0;">
+          <div class="form-group mb-0">
             <label class="form-label required">Importe ($)</label>
             <input type="number" class="form-control" id="pmt-importe" value="${existing?.importe ?? ''}"
                    placeholder="0.00" step="0.01" min="0" required>
           </div>
-          <div class="form-group" id="echeq-fecha-group" style="margin:0;display:${existing?.tipo_pago === 'echeq' ? 'flex' : 'none'};flex-direction:column;gap:6px;">
+          <div class="form-group mb-0 ${existing?.tipo_pago === 'echeq' ? '' : 'hidden'}" id="echeq-fecha-group">
             <label class="form-label">Fecha de cobro (E-cheq)</label>
             <input type="date" class="form-control" id="pmt-fecha-cobro" value="${existing?.fecha_cobro ?? ''}">
           </div>
         </div>
-        <div class="form-group mt-md">
+        <div class="form-group mt-md mb-0">
           <label class="form-label">Observaciones</label>
           <input type="text" class="form-control" id="pmt-obs" value="${escapeHtml(existing?.observaciones ?? '')}"
                  placeholder="Ej: Transferencia Banco Galicia, cheque nº 1234...">
@@ -278,8 +278,11 @@ export function openPaymentForm(paymentId, orderId, onSave) {
 
   // Mostrar/ocultar fecha cobro para e-cheq
   document.getElementById('pmt-tipo').addEventListener('change', e => {
-    const echeqGroup = document.getElementById('echeq-fecha-group');
-    if (echeqGroup) echeqGroup.style.display = e.target.value === 'echeq' ? 'flex' : 'none';
+    const isEcheq = e.target.value === 'echeq';
+    const group = document.getElementById('echeq-fecha-group');
+    if (group) {
+      group.style.display = isEcheq ? 'flex' : 'none';
+    }
   });
 
   document.getElementById('pmt-save').addEventListener('click', async () => {

@@ -123,23 +123,14 @@ function _updateBreadcrumbs(routeName, params) {
 
 // ── Splash loader ─────────────────────────────────────────────
 function _showSplashLoader(msg = 'Cargando...') {
-  // Quitar si ya existe
   document.getElementById('splash-loader')?.remove();
 
   const loader = document.createElement('div');
   loader.id = 'splash-loader';
-  loader.style.cssText = `
-    position:fixed;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:16px;
-    background:var(--c-bg,#080c14);z-index:9999;
-    color:var(--c-text,#f8fafc);font-family:var(--font-sans,sans-serif);
-  `;
+  loader.className = 'loading-overlay';
   loader.innerHTML = `
-    <div style="width:40px;height:40px;border:3px solid rgba(56,117,246,.2);
-                border-top-color:#3875f6;border-radius:50%;
-                animation:spin .8s linear infinite;"></div>
-    <div style="font-weight:500;font-size:15px;color:var(--c-text-2,#cbd5e1);">${msg}</div>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    <div class="app-loading-spinner"></div>
+    <div class="app-loading-msg">${msg}</div>
   `;
   document.body.appendChild(loader);
 }
@@ -158,26 +149,20 @@ function _showFatalError(error) {
   const view = document.getElementById('app-view');
   if (!view) return;
 
-  // Convertir el error a string de forma segura (sin escapeHtml)
   const msg = String(error?.message || error || 'Error desconocido')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
   view.innerHTML = `
-    <div style="max-width:560px;margin:60px auto;padding:32px;
-                background:var(--c-bg-2,#0d1322);border:1px solid rgba(239,68,68,0.3);border-radius:16px;
-                color:var(--c-text,#f8fafc);font-family:var(--font-sans,sans-serif);text-align:center;line-height:1.7;box-shadow:0 24px 48px rgba(0,0,0,0.65);">
-      <div style="font-size:44px;margin-bottom:12px;">❌</div>
-      <h2 style="color:var(--c-danger,#ef4444);font-size:20px;margin-bottom:8px;font-weight:700;">Error al inicializar la aplicación</h2>
-      <p style="color:var(--c-text-3,#8295b5);font-size:13px;margin-bottom:16px;">
+    <div class="app-diagnostic-card">
+      <div class="app-diagnostic-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      </div>
+      <h2 class="app-diagnostic-title">Error al inicializar la aplicación</h2>
+      <p class="app-diagnostic-text">
         Ocurrió un error inesperado al arrancar. Revisá la consola del navegador (F12) para el detalle exacto.
       </p>
-      <pre style="background:rgba(0,0,0,.4);padding:12px;border-radius:8px;
-                  font-size:12px;text-align:left;overflow:auto;max-height:200px;
-                  border:1px solid var(--c-border);font-family:var(--font-mono,monospace);">${msg}</pre>
-      <button onclick="location.reload()"
-              style="margin-top:20px;padding:10px 28px;background:var(--c-accent,#3875f6);
-                     color:#fff;border:none;border-radius:8px;font-size:14px;
-                     cursor:pointer;font-weight:600;box-shadow:0 4px 14px rgba(56,117,246,0.4);">
+      <pre class="app-diagnostic-box text-mono text-xs">${msg}</pre>
+      <button onclick="location.reload()" class="btn btn-primary btn-lg mt-md">
         Reintentar
       </button>
     </div>

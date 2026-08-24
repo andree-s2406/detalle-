@@ -93,7 +93,7 @@ export function renderPayments() {
     <!-- Filtros -->
     <div class="search-bar">
       <div class="filter-group">
-        <select class="form-control" id="filter-tipo" style="min-width:180px;">${tipoOptions}</select>
+        <select class="form-control" id="filter-tipo">${tipoOptions}</select>
         <input type="date" class="form-control" id="filter-desde" value="${_filters.fechaDesde}" title="Desde">
         <input type="date" class="form-control" id="filter-hasta" value="${_filters.fechaHasta}" title="Hasta">
         <button class="btn btn-ghost btn-sm" id="btn-clear-pmt">✕ Limpiar</button>
@@ -147,11 +147,11 @@ function _renderTable() {
 
   const rows = payments.map(p => {
     const pedidoCol = p.pedido_numero
-      ? `<strong style="color:var(--c-accent);font-family:var(--font-mono);cursor:pointer;"
-                onclick="Router.navigate('order-detail',{id:'${p.order_id}'})">
+      ? `<strong class="text-accent td-mono pointer"
+                 onclick="Router.navigate('order-detail',{id:'${p.order_id}'})">
            ${formatOrderNumber(p.pedido_numero)}
          </strong>`
-      : `<span class="chip chip-muted" style="font-size:11px;">Pago General</span>`;
+      : `<span class="chip chip-muted">Pago General</span>`;
 
     return `
       <tr>
@@ -194,9 +194,9 @@ function _renderTable() {
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="margin-top:var(--sp-sm);font-size:var(--fs-sm);color:var(--c-text-3);display:flex;justify-content:space-between;">
+    <div class="flex-between text-muted text-sm mt-sm">
       <span>${payments.length} pago(s)</span>
-      <span>Total filtrado: <strong style="color:var(--c-success);">${formatCurrency(totalFiltrado)}</strong></span>
+      <span>Total filtrado: <strong class="text-success">${formatCurrency(totalFiltrado)}</strong></span>
     </div>
   `;
 }
@@ -231,52 +231,52 @@ export function openPaymentModal(paymentId = null) {
     size: 'modal-md',
     content: `
       <!-- Resumen de saldo -->
-      <div style="background:var(--c-bg-3);border:1px solid var(--c-border);border-radius:var(--r-md);padding:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+      <div class="card mb-md flex-between">
         <div>
-          <div style="font-size:12px;color:var(--c-text-3);">Saldo Total Pendiente / Faltante</div>
-          <div style="font-size:20px;font-weight:700;color:${balance.saldoPendiente > 0 ? 'var(--c-danger)' : 'var(--c-success)'};">
+          <div class="text-xs text-muted">Saldo Total Pendiente / Faltante</div>
+          <div class="text-xl font-bold ${balance.saldoPendiente > 0 ? 'text-danger' : 'text-success'}">
             ${formatCurrency(balance.saldoPendiente)}
           </div>
         </div>
-        <div style="text-align:right;font-size:12px;color:var(--c-text-3);line-height:1.5;">
-          <div>Total Ventas: <strong>${formatCurrency(balance.totalVendido)}</strong></div>
-          <div>Total Cobrado: <strong style="color:var(--c-success);">${formatCurrency(balance.totalCobrado)}</strong></div>
+        <div class="text-right text-xs text-muted">
+          <div>Total Ventas: <strong class="text-white">${formatCurrency(balance.totalVendido)}</strong></div>
+          <div>Total Cobrado: <strong class="text-success">${formatCurrency(balance.totalCobrado)}</strong></div>
         </div>
       </div>
 
       <form id="global-payment-form">
         <div class="form-row">
-          <div class="form-group" style="margin:0;">
+          <div class="form-group mb-0">
             <label class="form-label required">Fecha de cobro</label>
             <input type="date" class="form-control" id="gpmt-fecha" value="${existing?.fecha ?? todayISO()}" required>
           </div>
-          <div class="form-group" style="margin:0;">
+          <div class="form-group mb-0">
             <label class="form-label required">Tipo de pago</label>
             <select class="form-control" id="gpmt-tipo">${tipoOptions}</select>
           </div>
         </div>
 
         <div class="form-row mt-md">
-          <div class="form-group" style="margin:0;">
+          <div class="form-group mb-0">
             <label class="form-label required">Importe ($)</label>
             <input type="number" class="form-control" id="gpmt-importe"
                    value="${existing?.importe ?? ''}" placeholder="0.00" step="0.01" min="0.01" required autofocus>
           </div>
-          <div class="form-group" id="gpmt-echeq-group" style="margin:0;display:${existing?.tipo_pago === 'echeq' ? 'flex' : 'none'};flex-direction:column;">
+          <div class="form-group mb-0 ${existing?.tipo_pago === 'echeq' ? '' : 'hidden'}" id="gpmt-echeq-group">
             <label class="form-label">Fecha de cobro (E-cheq)</label>
             <input type="date" class="form-control" id="gpmt-fecha-cobro" value="${existing?.fecha_cobro ?? ''}">
           </div>
         </div>
 
-        <div class="form-group mt-md">
+        <div class="form-group mt-md mb-0">
           <label class="form-label">Vincular a un pedido específico (Opcional)</label>
           <select class="form-control" id="gpmt-order">
             ${orderOptions}
           </select>
-          <div class="text-muted text-sm mt-sm">Podés dejarlo como "Pago General" para abonar parte o el total de la cuenta.</div>
+          <div class="text-muted text-sm mt-xs">Podés dejarlo como "Pago General" para abonar parte o el total de la cuenta.</div>
         </div>
 
-        <div class="form-group mt-md">
+        <div class="form-group mt-md mb-0">
           <label class="form-label">Observaciones / Notas</label>
           <input type="text" class="form-control" id="gpmt-obs" value="${escapeHtml(existing?.observaciones ?? '')}"
                  placeholder="Ej: Transferencia bancaria, depósito en efectivo, etc.">

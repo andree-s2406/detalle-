@@ -86,8 +86,8 @@ export const Modal = {
         title,
         size: 'modal-sm',
         content: `
-          <div class="confirm-icon" style="color:var(--c-accent);display:flex;justify-content:center;margin-bottom:12px;">${iconSvg}</div>
-          <p class="confirm-message">${message}</p>
+          <div class="confirm-icon-wrapper">${iconSvg}</div>
+          <p class="confirm-dialog-msg">${message}</p>
         `,
         footer,
         onClose: () => doResolve(false),

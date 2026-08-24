@@ -27,7 +27,7 @@ export function renderProducts() {
         <p class="page-subtitle">Administración del catálogo de productos y precios</p>
       </div>
       <div class="page-actions">
-        <label class="toggle-wrapper" style="font-size:13px;color:var(--c-text-3);">
+        <label class="toggle-wrapper text-sm text-muted">
           <span>Ver inactivos</span>
           <label class="toggle">
             <input type="checkbox" id="toggle-inactive" ${_showInactive ? 'checked' : ''}>
@@ -97,7 +97,7 @@ function _renderProductTable() {
       <tr data-id="${p.id}">
         <td><strong>${escapeHtml(p.nombre)}</strong></td>
         <td class="td-mono td-right"><strong>${formatCurrency(p.precio)}</strong></td>
-        <td style="flex-wrap:wrap;gap:4px;">${coloresHtml}${masColores}</td>
+        <td><div class="flex gap-xs">${coloresHtml}${masColores}</div></td>
         <td>${activeBadge(p.activo)}</td>
         <td class="text-muted text-sm">${formatDate(p.updated_at)}</td>
         <td class="td-actions">
@@ -106,7 +106,7 @@ function _renderProductTable() {
               ${icon('edit', '', 14)}
             </button>
             <button class="btn btn-ghost btn-icon btn-sm" title="${p.activo ? 'Desactivar' : 'Activar'}" onclick="window._toggleProduct('${p.id}')">
-              <span style="color:${p.activo ? 'var(--c-danger)' : 'var(--c-success)'};display:inline-flex;">
+              <span class="${p.activo ? 'text-danger' : 'text-success'} flex-center">
                 ${icon('power', '', 14)}
               </span>
             </button>
@@ -135,7 +135,7 @@ function _renderProductTable() {
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="margin-top:var(--sp-sm);font-size:var(--fs-sm);color:var(--c-text-3);">
+    <div class="text-muted text-sm mt-sm">
       ${products.length} producto(s) ${_showInactive ? '' : 'activo(s)'}
     </div>
   `;
@@ -153,12 +153,10 @@ export function openProductForm(productId) {
   const productColors = product?.colores?.map(c => c.id) ?? [];
 
   const colorsCheckboxes = allColors.map(c => `
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 10px;border-radius:var(--r-sm);transition:background var(--t-fast);"
-           onmouseover="this.style.background='var(--c-bg-3)'" onmouseout="this.style.background=''">
-      <input type="checkbox" value="${c.id}" ${productColors.includes(c.id) ? 'checked' : ''}
-             style="width:16px;height:16px;accent-color:var(--c-accent);cursor:pointer;">
+    <label class="checkbox-label">
+      <input type="checkbox" value="${c.id}" ${productColors.includes(c.id) ? 'checked' : ''}>
       ${colorDot(c.nombre)}
-      <span style="font-size:var(--fs-base);">${escapeHtml(c.nombre)}</span>
+      <span>${escapeHtml(c.nombre)}</span>
     </label>
   `).join('');
 
@@ -177,8 +175,8 @@ export function openProductForm(productId) {
         </div>
         <div class="form-group">
           <label class="form-label">Colores disponibles</label>
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px;max-height:220px;overflow-y:auto;background:var(--c-bg-3);border:1px solid var(--c-border);border-radius:var(--r-md);padding:var(--sp-sm);">
-            ${colorsCheckboxes || '<span class="text-muted text-sm" style="padding:8px;">No hay colores disponibles. Creá colores primero.</span>'}
+          <div class="color-selection-grid">
+            ${colorsCheckboxes || '<span class="text-muted text-sm p-sm">No hay colores disponibles. Creá colores primero.</span>'}
           </div>
         </div>
       </form>
