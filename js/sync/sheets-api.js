@@ -171,6 +171,11 @@ async function formatSafeRange(rangeOrSheet, cellRange = '', autoCreate = false)
 
 export const SheetsApi = {
   /**
+   * Obtener lista de títulos de hojas reales
+   */
+  getSpreadsheetSheets,
+
+  /**
    * Verificar acceso a la planilla y estructura de hojas
    */
   async verifySpreadsheet() {

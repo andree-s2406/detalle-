@@ -97,14 +97,9 @@ export async function initGoogleAuth(silent = true) {
     }
   });
 
-  // Si estaba configurado como conectado y el token ya expiró o está próximo a expirar, renovar en segundo plano
-  const wasConnected = getConfig('google_connected', 'false') === 'true';
-  if (wasConnected && (!isTokenFresh() || !_accessToken)) {
-    try {
-      _tokenClient.requestAccessToken({ prompt: '' });
-    } catch (e) {
-      console.log('[GoogleAuth] Re-autenticación en segundo plano...');
-    }
+  // Si no es silencioso (el usuario hizo clic en "Conectar"), solicitar token
+  if (!silent) {
+    _tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 
   return true;

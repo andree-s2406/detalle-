@@ -12,7 +12,7 @@ import { renderOrderForm } from './views/OrderForm.js';
 import { renderOrderDetail } from './views/OrderDetail.js';
 import { renderPayments }  from './views/Payments.js';
 import { renderSettings }  from './views/Settings.js';
-import { initGoogleAuth, isConnected }  from './sync/google-auth.js';
+import { initGoogleAuth, isConnected, isTokenFresh }  from './sync/google-auth.js';
 import { GoogleSheetsSync } from './sync/google-sheets.js';
 
 // Exponer utilidades de depuración en consola del navegador
@@ -26,10 +26,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     await initDatabase();
 
-    // Auto-reconectar Google Drive y sincronizar cambios en segundo plano
+    // Auto-reconectar Google Drive y sincronizar cambios en segundo plano si la sesión está activa y fresca
     initGoogleAuth(true)
-      .then(async connected => {
-        if (connected) {
+      .then(async () => {
+        if (isConnected() && isTokenFresh()) {
           try {
             await GoogleSheetsSync.importAllFromSheets();
             Router.resolveHash();
