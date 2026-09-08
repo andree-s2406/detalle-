@@ -147,7 +147,7 @@ async function ensureSheetExists(sheetTitle) {
 /**
  * Formatear un rango seguro A1 con comillas simples para la API de Google Sheets
  */
-async function formatSafeRange(rangeOrSheet, cellRange = '') {
+async function formatSafeRange(rangeOrSheet, cellRange = '', autoCreate = false) {
   let sheetName = rangeOrSheet;
   let cells = cellRange;
 
@@ -157,7 +157,14 @@ async function formatSafeRange(rangeOrSheet, cellRange = '') {
     cells = parts[1] || '';
   }
 
-  const resolvedName = await ensureSheetExists(sheetName);
+  let resolvedName = sheetName;
+  if (autoCreate) {
+    resolvedName = await ensureSheetExists(sheetName);
+  } else {
+    const sheetList = await getSpreadsheetSheets();
+    resolvedName = resolveSheetTitleFromList(sheetName, sheetList);
+  }
+
   const escapedName = String(resolvedName || sheetName).replace(/'/g, "''");
   return cells ? `'${escapedName}'!${cells}` : `'${escapedName}'`;
 }
