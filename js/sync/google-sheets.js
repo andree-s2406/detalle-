@@ -6,7 +6,7 @@ import { getDb, persistDatabase, run, transaction, queryOne, queryAll } from '..
 import { uuid, nowISO, todayISO, parseCurrency } from '../components/Formatter.js';
 import { isConnected } from './google-auth.js';
 import { SheetsApi } from './sheets-api.js';
-import { calcularImportes } from '../config.js';
+import { calcularImportes, getPctSinFactura, getPctFacturado, getRecargoFactura, setConfig } from '../config.js';
 import { getAllProducts, getAllColors } from '../models/Product.js';
 import { getAllOrders } from '../models/Order.js';
 import { getAllPayments } from '../models/Payment.js';
@@ -209,10 +209,14 @@ export const GoogleSheetsSync = {
 
     // La tabla de saldos siempre muestra 21 casillas como minimo. El total se
     // coloca inmediatamente despues y baja una fila por cada pedido adicional.
+    const pctSFVal = getPctSinFactura();
+    const pctFVal  = getPctFacturado();
+    const recFVal  = getRecargoFactura();
+
     const balanceSlots = Math.max(MIN_BALANCE_SLOTS, orders.length);
     const orderBalances = orders.map(order => ({
-      sinFactura: Number(order.importe_sin_factura ?? (order.total * 0.70)) || 0,
-      facturado: Number(order.importe_facturado ?? (order.total * 0.30 * 1.245)) || 0
+      sinFactura: Number(order.importe_sin_factura ?? (order.total * pctSFVal)) || 0,
+      facturado: Number(order.importe_facturado ?? (order.total * pctFVal * (1 + recFVal))) || 0
     }));
     const totalSinFactura = orderBalances.reduce((total, balance) => total + balance.sinFactura, 0);
     const totalFacturado = orderBalances.reduce((total, balance) => total + balance.facturado, 0);
@@ -223,11 +227,15 @@ export const GoogleSheetsSync = {
     const pendienteEfectivo = Math.max(0, totalSinFactura - totalAbonoEfectivo);
     const pendienteBlanco = Math.max(0, totalFacturado - totalAbonoBlanco);
 
+    const pctSFStr = (pctSFVal * 100).toFixed(1).replace(/\.0$/, '') + '%';
+    const pctFStr  = (pctFVal * 100).toFixed(1).replace(/\.0$/, '') + '%';
+    const recFStr  = (recFVal * 100).toFixed(1).replace(/\.0$/, '') + '%';
+
     // El resumen de abonos se ubica debajo de ambos listados para no tapar
     // un pago cuando haya mas de 21 registros.
     const paymentTotalRow = Math.max(balanceSlots, payments.length);
     const paymentPendingRow = paymentTotalRow + 1;
-    const bodyRows = paymentPendingRow + 1;
+    const bodyRows = Math.max(paymentPendingRow + 1, 4);
 
     for (let i = 0; i < bodyRows; i++) {
       const o = orders[i];
@@ -267,7 +275,27 @@ export const GoogleSheetsSync = {
         colG = pendienteBlanco;
       }
 
-      rows.push([colA, colB, colC, '', colE, colF, colG, colH, colI]);
+      // Columnas K y L: Parámetros de Configuración Concurrentes
+      let colK = '', colL = '';
+      if (i === 0) {
+        colK = 'Porcentaje Sin Factura (%)';
+        colL = pctSFStr;
+      } else if (i === 1) {
+        colK = 'Porcentaje Facturado (%)';
+        colL = pctFStr;
+      } else if (i === 2) {
+        colK = 'Recargo Facturado (IVA / etc) (%)';
+        colL = recFStr;
+      }
+
+      rows.push([colA, colB, colC, '', colE, colF, colG, colH, colI, '', colK, colL]);
+    }
+
+    // Encabezados en K2:L2
+    try {
+      await SheetsApi.updateValues('Pagos!K2:L2', [['CONFIGURACIÓN', 'VALOR (%)']]);
+    } catch (eHdr) {
+      console.warn('[Sync] Nota encabezado config:', eHdr.message);
     }
 
     // Las filas 1 y 2 contienen los titulos y encabezados fijos de la planilla.
@@ -453,6 +481,7 @@ export const GoogleSheetsSync = {
           console.log(`[Import] Filas leídas de "${pmtTab}":`, pmtRows?.length || 0);
           const count = _extractPaymentsFromRows(pmtRows);
           importedPayments += count;
+          _extractConfigFromRows(pmtRows);
           if (count > 0) break;
         } catch (ePmt) {
           console.warn(`[Import] Error leyendo pestaña "${pmtTab}":`, ePmt.message);
@@ -811,5 +840,51 @@ function _autoLinkPaymentsToOrders() {
       run(`UPDATE payments SET order_id = ? WHERE id = ?`, [openOrder.id, pmt.id]);
     }
   }
+}
+
+function _extractConfigFromRows(rows) {
+  if (!rows || rows.length === 0) return false;
+
+  let updated = false;
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] || [];
+    for (let c = 0; c < row.length; c++) {
+      const cell = String(row[c] || '').trim().toLowerCase();
+      if (!cell) continue;
+
+      // Buscar celda de valor adyacente a la derecha
+      let rawVal = '';
+      for (let nextC = c + 1; nextC < row.length; nextC++) {
+        const valCandidate = String(row[nextC] || '').trim();
+        if (valCandidate) {
+          rawVal = valCandidate;
+          break;
+        }
+      }
+      if (!rawVal) continue;
+
+      const numVal = parseCurrency(rawVal);
+      if (numVal <= 0) continue;
+
+      const decimalVal = numVal > 1 ? (numVal / 100) : numVal;
+
+      if (cell.includes('sin factura') && (cell.includes('porcentaje') || cell.includes('%') || cell.includes('pct'))) {
+        setConfig('pct_sin_factura', decimalVal.toString());
+        updated = true;
+      } else if (cell.includes('facturado') && !cell.includes('recargo') && (cell.includes('porcentaje') || cell.includes('%') || cell.includes('pct'))) {
+        setConfig('pct_facturado', decimalVal.toString());
+        updated = true;
+      } else if (cell.includes('recargo') && (cell.includes('facturado') || cell.includes('iva') || cell.includes('%') || cell.includes('pct'))) {
+        setConfig('recargo_factura', decimalVal.toString());
+        updated = true;
+      }
+    }
+  }
+
+  if (updated) {
+    console.log('[Sync] Porcentajes de cálculo actualizados desde Google Sheets');
+  }
+  return updated;
 }
 

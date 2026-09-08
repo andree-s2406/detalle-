@@ -243,6 +243,12 @@ function _saveConfig() {
   setConfig('recargo_factura', (recVal / 100).toString());
 
   Toast.success('Configuración guardada', 'Los porcentajes de cálculo fueron actualizados');
+
+  if (isConnected()) {
+    GoogleSheetsSync.syncPaymentsSheet().catch(e => {
+      console.warn('[Settings] Nota sync porcentajes a Sheets:', e.message);
+    });
+  }
 }
 
 async function _handleImport(e) {
