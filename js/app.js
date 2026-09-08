@@ -2,7 +2,7 @@
 //  APP MAIN — Inicialización de la aplicación y orquestación
 // ============================================================
 
-import { initDatabase } from './db/database.js';
+import { initDatabase, queryAll, queryOne, run } from './db/database.js';
 import { Router }          from './router.js';
 import { renderDashboard } from './views/Dashboard.js';
 import { renderProducts }  from './views/Products.js';
@@ -14,6 +14,10 @@ import { renderPayments }  from './views/Payments.js';
 import { renderSettings }  from './views/Settings.js';
 import { initGoogleAuth, isConnected }  from './sync/google-auth.js';
 import { GoogleSheetsSync } from './sync/google-sheets.js';
+
+// Exponer utilidades de depuración en consola del navegador
+window.db = { queryAll, queryOne, run };
+window.GoogleSheetsSync = GoogleSheetsSync;
 
 // ── Inicialización al cargar la ventana ──────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
