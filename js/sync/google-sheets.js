@@ -427,52 +427,49 @@ export const GoogleSheetsSync = {
 
     // 3. Importar HOJA "Pagos" (Pagos en cols E a I, filas desde E1)
     try {
-      // Leer desde la fila 1 para capturar todos los datos posibles
       const pmtRows = await SheetsApi.getValues('Pagos!E1:I1000');
       if (pmtRows && pmtRows.length > 0) {
         for (let i = 0; i < pmtRows.length; i++) {
           const row = pmtRows[i];
           if (!row || row.length === 0) continue;
 
-          const fecha = String(row[0] || '').trim();
-          const normalizedFecha = fecha.toLowerCase();
+          const col0 = String(row[0] || '').trim();
+          const normalizedCol0 = col0.toLowerCase();
 
-          // Saltar filas de encabezado y filas de resumen (TOTAL ABONADO, PENDIENTE, etc.)
+          // Saltar filas de encabezado y filas de resumen fijas
           const isHeaderOrSummary =
-            normalizedFecha === 'fecha' ||
-            normalizedFecha === 'total abonado' ||
-            normalizedFecha === 'pendiente' ||
-            normalizedFecha === 'total saldos' ||
-            normalizedFecha === '' ||
-            normalizedFecha === '-' ||
-            normalizedFecha === '—';
+            normalizedCol0 === 'fecha' ||
+            normalizedCol0.includes('total abonado') ||
+            normalizedCol0.includes('pendiente') ||
+            normalizedCol0.includes('total saldos') ||
+            normalizedCol0 === 'total' ||
+            normalizedCol0 === '-' ||
+            normalizedCol0 === '—';
 
           if (isHeaderOrSummary) continue;
 
-          // Validar que sea una fecha real (formatos: YYYY-MM-DD, DD/MM/YYYY, D/M/YY, etc.)
-          const isDate =
-            /^\d{4}-\d{2}-\d{2}$/.test(fecha) ||
-            /^\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4}$/.test(fecha);
-
-          if (!isDate) continue;
-
-          const efectivo = parseCurrency(row[1]);
-          const blanco   = parseCurrency(row[2]);
-          const echeq    = parseCurrency(row[3]);
+          const efectivo   = parseCurrency(row[1]);
+          const blanco     = parseCurrency(row[2]);
+          const echeq      = parseCurrency(row[3]);
           const fechaCobro = String(row[4] || '').trim();
+
+          // Si no hay ningún importe positivo en la fila, saltear
+          if (efectivo <= 0 && blanco <= 0 && echeq <= 0) continue;
+
+          // Si la columna fecha tiene una fecha válida, usarla; si no, usar fecha de hoy
+          const normalizedPaymentDate = _isSheetDate(col0) ? _normalizeSheetDate(col0) : todayISO();
+          const normalizedCobroDate   = _isSheetDate(fechaCobro) ? _normalizeSheetDate(fechaCobro) : (fechaCobro || '');
 
           // Registrar pagos según tipo
           const pmtList = [
             { tipo: 'efectivo', importe: efectivo, cobro: '' },
             { tipo: 'blanco',   importe: blanco,   cobro: '' },
-            { tipo: 'echeq',    importe: echeq,    cobro: fechaCobro },
+            { tipo: 'echeq',    importe: echeq,    cobro: normalizedCobroDate },
           ];
 
           for (const item of pmtList) {
             if (item.importe > 0) {
-              const normalizedPaymentDate = _normalizeSheetDate(fecha);
-
-              // Verificar si ya existe este pago exacto (evitar duplicados)
+              // Verificar si ya existe este pago exacto para evitar duplicados
               const existingPayment = queryOne(`
                 SELECT id FROM payments
                 WHERE fecha = ? AND tipo_pago = ? AND ABS(importe - ?) < 0.005
@@ -482,9 +479,8 @@ export const GoogleSheetsSync = {
 
               if (existingPayment) continue;
 
-              // Intentar vincular al pedido con mayor saldo pendiente que coincida,
-              // pero si no hay ninguno, guardar como pago general (order_id = NULL).
-              // Así el balance total SIEMPRE refleja todos los cobros.
+              // Asignar al primer pedido abierto con saldo pendiente si existe,
+              // o registrar como Pago General (order_id = NULL)
               const openOrder = queryOne(`
                 SELECT o.id, o.numero FROM orders o
                 WHERE (SELECT COALESCE(SUM(importe), 0) FROM payments WHERE order_id = o.id) < o.total
@@ -683,21 +679,35 @@ function _replaceOrderFromSheet(orderId, fecha, items, saldoAnteriorEfectivo, sa
 
 function _normalizeSheetDate(value) {
   const date = String(value || '').trim();
-  const iso = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return date;
+  if (!date) return todayISO();
 
-  // La planilla usa formato argentino dd/mm/aaaa. Se guarda todo en ISO para
-  // que el detector de pedidos existentes compare la misma fecha real.
-  const local = date.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-  if (!local) return date;
+  // Serial Excel (ej. 45543)
+  if (/^\d{5}$/.test(date)) {
+    const serial = parseInt(date, 10);
+    const utcDays = serial - 25569;
+    const utcValue = utcDays * 86400;
+    const dateInfo = new Date(utcValue * 1000);
+    if (!isNaN(dateInfo.getTime())) {
+      return dateInfo.toISOString().split('T')[0];
+    }
+  }
 
-  const day = local[1].padStart(2, '0');
-  const month = local[2].padStart(2, '0');
-  const year = local[3].length === 2 ? `20${local[3]}` : local[3];
-  return `${year}-${month}-${day}`;
+  const iso = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const local = date.match(/^(\d{1,2})[/\-\.](\d{1,2})[/\-\.](\d{2,4})/);
+  if (local) {
+    const day = local[1].padStart(2, '0');
+    const month = local[2].padStart(2, '0');
+    let year = local[3];
+    if (year.length === 2) year = `20${year}`;
+    return `${year}-${month}-${day}`;
+  }
+
+  return todayISO();
 }
 
 function _isSheetDate(value) {
   const date = String(value || '').trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) || /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(date);
+  return /^\d{4}-\d{2}-\d{2}/.test(date) || /^\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4}/.test(date) || /^\d{5}$/.test(date);
 }
