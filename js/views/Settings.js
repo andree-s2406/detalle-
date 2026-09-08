@@ -30,10 +30,10 @@ export function renderSettings() {
       </div>
     </div>
 
-    <div class="grid grid-2">
+    <div class="settings-layout">
       
       <!-- Panel de cálculos -->
-      <div class="card mb-md">
+      <div class="card settings-card">
         <div class="card-header">
           <span class="card-title">${icon('settings')} Configuración de Cálculos (Lógica del Excel)</span>
         </div>
@@ -58,7 +58,7 @@ export function renderSettings() {
             <span>%</span>
           </div>
         </div>
-        <div class="mt-md flex flex-end">
+        <div class="settings-actions flex-end">
           <button class="btn btn-primary" id="btn-save-config">
             ${icon('save')} Guardar Porcentajes
           </button>
@@ -66,7 +66,7 @@ export function renderSettings() {
       </div>
 
       <!-- Sincronización con Google Drive / Sheets -->
-      <div class="card mb-md">
+      <div class="card settings-card">
         <div class="card-header">
           <span class="card-title">${icon('cloud')} Conexión con Google Drive / Sheets</span>
           <span class="chip ${driveConnected ? 'chip-success' : 'chip-muted'}" id="drive-status-badge">
@@ -92,13 +92,13 @@ export function renderSettings() {
           <div class="text-muted text-sm mt-xs">El ID que figura en la URL de tu planilla de Google Drive.</div>
         </div>
 
-        <div class="flex gap-md mt-md">
+        <div class="settings-actions">
           ${driveConnected ? `
             <button class="btn btn-danger" id="btn-drive-disconnect">
-              ${icon('unlink')} Desconectar Google Drive
+              ${icon('unlink')} Desconectar
             </button>
             <button class="btn btn-primary" id="btn-drive-sync-now">
-              ${icon('refresh')} Exportar Todo a Google Sheets
+              ${icon('refresh')} Exportar a Google Sheets
             </button>
             <button class="btn btn-secondary" id="btn-drive-import-now">
               ${icon('download')} Extraer Datos desde Google Sheets
@@ -115,20 +115,20 @@ export function renderSettings() {
       </div>
 
       <!-- Copia de seguridad y base de datos -->
-      <div class="card grid-full">
+      <div class="card settings-card grid-full">
         <div class="card-header">
           <span class="card-title">${icon('database')} Base de Datos Local (SQLite)</span>
         </div>
         <p class="text-muted text-sm mb-md">
           Tus datos se guardan automáticamente de forma local en tu navegador (IndexedDB). Podés descargar una copia de seguridad para resguardar tu información o para moverla a otra computadora.
         </p>
-        <div class="flex gap-md">
+        <div class="settings-actions">
           <button class="btn btn-secondary" id="btn-db-export">
             ${icon('download')} Exportar Base de Datos (.db)
           </button>
           <label class="btn btn-ghost pointer">
             ${icon('upload')} Importar Base de Datos (.db)
-            <input type="file" id="btn-db-import-file" accept=".db" class="hidden">
+            <input type="file" id="btn-db-import-file" accept=".db" class="hidden" style="display: none;">
           </label>
         </div>
       </div>

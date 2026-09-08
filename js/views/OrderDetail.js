@@ -101,7 +101,7 @@ function _renderDetail(orderId) {
       <!-- Columna principal -->
       <div>
         <!-- Productos -->
-        <div class="card mb-md">
+        <div class="card mb-sm">
           <div class="card-header">
             <span class="card-title">${icon('products')} Productos del pedido</span>
             <span class="text-muted text-sm">${order.items?.length || 0} ítem(s)</span>
@@ -136,7 +136,7 @@ function _renderDetail(orderId) {
 
       <!-- Columna lateral: totales -->
       <div>
-        <div class="card mb-md">
+        <div class="card mb-sm">
           <div class="card-header">
             <span class="card-title">${icon('money')} Resumen Financiero</span>
           </div>
@@ -193,7 +193,7 @@ function _renderDetail(orderId) {
         </div>
 
         ${order.notas ? `
-          <div class="card mb-md">
+          <div class="card mb-sm">
             <div class="card-header"><span class="card-title">${icon('invoice')} Notas</span></div>
             <p class="text-muted text-sm">${escapeHtml(order.notas)}</p>
           </div>

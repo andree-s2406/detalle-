@@ -33,9 +33,9 @@ export function renderDashboard() {
     </div>
 
     <!-- Métricas principales -->
-    <div class="grid grid-4 mb-lg">
+    <div class="grid grid-4 mb-sm">
       <div class="stat-card">
-        <div class="stat-icon accent">${icon('box', '', 22)}</div>
+        <div class="stat-icon accent">${icon('box', '', 18)}</div>
         <div class="stat-content">
           <div class="stat-label">Total Pedidos</div>
           <div class="stat-value">${stats.totalPedidos}</div>
@@ -44,7 +44,7 @@ export function renderDashboard() {
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon success">${icon('money', '', 22)}</div>
+        <div class="stat-icon success">${icon('money', '', 18)}</div>
         <div class="stat-content">
           <div class="stat-label">Total Facturado/Vendido</div>
           <div class="stat-value">${formatCurrency(stats.totalVendido)}</div>
@@ -53,7 +53,7 @@ export function renderDashboard() {
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon warning">${icon('invoice', '', 22)}</div>
+        <div class="stat-icon warning">${icon('invoice', '', 18)}</div>
         <div class="stat-content">
           <div class="stat-label">Sin Factura (70%)</div>
           <div class="stat-value">${formatCurrency(stats.totalSinFactura)}</div>
@@ -62,7 +62,7 @@ export function renderDashboard() {
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon info">${icon('checkDoc', '', 22)}</div>
+        <div class="stat-icon info">${icon('checkDoc', '', 18)}</div>
         <div class="stat-content">
           <div class="stat-label">Facturado (30% + Rec.)</div>
           <div class="stat-value">${formatCurrency(stats.totalFacturado)}</div>
@@ -72,9 +72,9 @@ export function renderDashboard() {
     </div>
 
     <!-- Métricas de Cobro y Operación -->
-    <div class="grid grid-4 mb-lg">
+    <div class="grid grid-4 mb-sm">
       <div class="stat-card">
-        <div class="stat-icon success">${icon('check', '', 22)}</div>
+        <div class="stat-icon success">${icon('check', '', 18)}</div>
         <div class="stat-content">
           <div class="stat-label">Total Cobrado</div>
           <div class="stat-value text-success">${formatCurrency(stats.totalCobrado)}</div>
@@ -83,7 +83,7 @@ export function renderDashboard() {
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon danger">${icon('clock', '', 22)}</div>
+        <div class="stat-icon danger">${icon('clock', '', 18)}</div>
         <div class="stat-content">
           <div class="stat-label">Saldo Pendiente</div>
           <div class="stat-value text-danger">${formatCurrency(stats.totalPendiente)}</div>
@@ -92,7 +92,7 @@ export function renderDashboard() {
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon accent">${icon('checkDoc', '', 22)}</div>
+        <div class="stat-icon accent">${icon('checkDoc', '', 18)}</div>
         <div class="stat-content">
           <div class="stat-label">Confirmados</div>
           <div class="stat-value">${stats.pedidosConfirmados}</div>
@@ -101,7 +101,7 @@ export function renderDashboard() {
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon warning">${icon('refresh', '', 22)}</div>
+        <div class="stat-icon warning">${icon('refresh', '', 18)}</div>
         <div class="stat-content">
           <div class="stat-label">En Producción</div>
           <div class="stat-value">${stats.pedidosPendientes}</div>

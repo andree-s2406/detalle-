@@ -28,7 +28,11 @@ export const GoogleSheetsSync = {
     // Antes de cambiar la copia local, se traen automaticamente los cambios
     // hechos en Google Sheets desde cualquier otra computadora.
     if (isConnected()) {
-      await this.importAllFromSheets();
+      try {
+        await this.importAllFromSheets();
+      } catch (syncErr) {
+        console.warn('[SyncEngine] Import previo omitido:', syncErr.message);
+      }
     }
 
     const snapshot = createLocalSnapshot();
@@ -36,6 +40,8 @@ export const GoogleSheetsSync = {
 
     try {
       localResult = await localAction();
+      // Persistir inmediatamente en IndexedDB
+      await persistDatabase();
     } catch (localError) {
       console.error('[SyncEngine] Error local:', localError);
       throw localError;
@@ -58,6 +64,8 @@ export const GoogleSheetsSync = {
       }
     }
 
+    // Persistir estado final
+    await persistDatabase();
     return localResult;
   },
 
@@ -429,26 +437,45 @@ export const GoogleSheetsSync = {
 
     // 3. Importar HOJA "Pagos" (y cualquier pestaña que contenga abonos)
     try {
-      const allSheetTitles = await SheetsApi.getSpreadsheetSheets();
+      const allSheetTitles = await SheetsApi.getSpreadsheetSheets(true);
       console.log('[Import] Pestañas disponibles en la planilla:', allSheetTitles);
 
-      // 1. Intentar con la pestaña Pagos
-      const pmtRows = await SheetsApi.getValues('Pagos!A1:Z1000');
-      importedPayments += _extractPaymentsFromRows(pmtRows);
+      // Buscar cualquier pestaña cuyo nombre tenga "pago", "cobro", "abono" (ej. "1 Pagos", "Pagos", etc.)
+      const paymentTabs = allSheetTitles.filter(t => {
+        const low = t.trim().toLowerCase();
+        return low.includes('pago') || low.includes('cobro') || low.includes('abono');
+      });
 
-      // 2. Si no se encontraron pagos en "Pagos", buscar en "Descripcion"
-      if (importedPayments === 0) {
-        const descRows = await SheetsApi.getValues('Descripcion!A1:Z5000');
-        importedPayments += _extractPaymentsFromRows(descRows);
+      // Leer de las pestañas de pagos identificadas
+      for (const pmtTab of (paymentTabs.length > 0 ? paymentTabs : ['Pagos'])) {
+        try {
+          const pmtRows = await SheetsApi.getValues(`'${pmtTab.replace(/'/g, "''")}'!A1:Z3000`);
+          console.log(`[Import] Filas leídas de "${pmtTab}":`, pmtRows?.length || 0);
+          const count = _extractPaymentsFromRows(pmtRows);
+          importedPayments += count;
+          if (count > 0) break;
+        } catch (ePmt) {
+          console.warn(`[Import] Error leyendo pestaña "${pmtTab}":`, ePmt.message);
+        }
       }
 
-      // 3. Si aún no se encontraron, revisar todas las demás pestañas de la planilla
+      // Si no se encontraron pagos en las pestañas de pagos, buscar en "Descripcion"
+      if (importedPayments === 0) {
+        try {
+          const descRows = await SheetsApi.getValues('Descripcion!A1:Z5000');
+          importedPayments += _extractPaymentsFromRows(descRows);
+        } catch (eDesc) {
+          console.warn('[Import] Error buscando pagos en Descripcion:', eDesc.message);
+        }
+      }
+
+      // Si aún no se encontraron, revisar todas las demás pestañas de la planilla
       if (importedPayments === 0 && allSheetTitles.length > 0) {
         for (const title of allSheetTitles) {
           try {
             const cleanTitle = title.trim();
             const lower = cleanTitle.toLowerCase();
-            if (lower === 'productos') continue;
+            if (lower === 'productos' || lower === 'descripcion' || paymentTabs.includes(title)) continue;
             const otherRows = await SheetsApi.getValues(`'${cleanTitle.replace(/'/g, "''")}'!A1:Z5000`);
             const found = _extractPaymentsFromRows(otherRows);
             if (found > 0) {
@@ -692,31 +719,36 @@ function _extractPaymentsFromRows(rows) {
 
     for (let c = 0; c < row.length; c++) {
       const cell = String(row[c] || '').trim().toLowerCase();
-      if (cell.includes('fecha cobro') || cell.includes('cobro echeq') || (cell.includes('cobro') && !cell.includes('total'))) {
+      if (!cell) continue;
+
+      if (cell.includes('fecha cobro') || cell.includes('cobro echeq') || cell.includes('f. cobro') || (cell.includes('cobro') && !cell.includes('total'))) {
         tempCobro = c;
-      } else if (cell.includes('echeq') || cell.includes('cheque')) {
+      } else if (cell.includes('echeq') || cell.includes('e-cheq') || cell.includes('cheque')) {
         tempEcheq = c;
-      } else if (cell.includes('abono en blanco') || cell.includes('abono blanco') || (cell.includes('blanco') && !cell.includes('saldo'))) {
+      } else if (cell.includes('abono en blanco') || cell.includes('abono blanco') || cell.includes('en blanco') || (cell.includes('blanco') && !cell.includes('saldo'))) {
         tempBlanco = c;
-      } else if (cell.includes('abono efectivo') || cell.includes('abono negro') || (cell.includes('efectivo') && !cell.includes('saldo'))) {
+      } else if (cell.includes('abono efectivo') || cell.includes('abono negro') || cell.includes('en efectivo') || (cell.includes('efectivo') && !cell.includes('saldo') && !cell.includes('total'))) {
         tempEfectivo = c;
       }
     }
 
+    // Si encontramos una cabecera de pagos en esta fila
     if (tempEfectivo !== -1 || tempBlanco !== -1 || tempEcheq !== -1) {
       colEfectivoIdx = tempEfectivo;
       colBlancoIdx = tempBlanco;
       colEcheqIdx = tempEcheq;
       colFechaCobroIdx = tempCobro;
 
+      // Buscar la columna de fecha de pago (a la izquierda de los abonos)
       const abonoStart = Math.min(
         tempEfectivo !== -1 ? tempEfectivo : 99,
         tempBlanco !== -1 ? tempBlanco : 99,
         tempEcheq !== -1 ? tempEcheq : 99
       );
+      colFechaIdx = -1;
       for (let c = abonoStart - 1; c >= 0; c--) {
         const cell = String(row[c] || '').trim().toLowerCase();
-        if (cell.includes('fecha')) {
+        if (cell.includes('fecha') || cell.includes('dia') || cell.includes('f.')) {
           colFechaIdx = c;
           break;
         }
@@ -725,7 +757,8 @@ function _extractPaymentsFromRows(rows) {
       continue;
     }
 
-    if (colEfectivoIdx !== -1 || colBlancoIdx !== -1) {
+    // Procesar fila de datos de pago
+    if (colEfectivoIdx !== -1 || colBlancoIdx !== -1 || colEcheqIdx !== -1) {
       const rawFecha = colFechaIdx !== -1 ? String(row[colFechaIdx] || '').trim() : '';
       const normFecha = rawFecha.toLowerCase();
       if (
@@ -767,6 +800,7 @@ function _extractPaymentsFromRows(rows) {
 
           if (existingPayment) continue;
 
+          // Buscar pedido abierto para vincular
           const openOrder = queryOne(`
             SELECT o.id, o.numero FROM orders o
             WHERE (SELECT COALESCE(SUM(importe), 0) FROM payments WHERE order_id = o.id) < o.total
@@ -782,9 +816,75 @@ function _extractPaymentsFromRows(rows) {
           importedCount++;
         }
       }
+    } else {
+      // Fallback: Si no hay cabecera explícita pero la fila tiene una fecha válida y montos en columnas siguientes
+      for (let c = 0; c < row.length - 1; c++) {
+        const potentialDate = String(row[c] || '').trim();
+        if (_isSheetDate(potentialDate)) {
+          const val1 = parseCurrency(row[c + 1]);
+          const val2 = parseCurrency(row[c + 2]);
+          const val3 = parseCurrency(row[c + 3]);
+          const cobroVal = String(row[c + 4] || '').trim();
+
+          if (val1 > 0 || val2 > 0 || val3 > 0) {
+            const pmtDate = _normalizeSheetDate(potentialDate);
+            const cobroDate = _isSheetDate(cobroVal) ? _normalizeSheetDate(cobroVal) : '';
+
+            const fallbackList = [
+              { tipo: 'efectivo', importe: val1, cobro: '' },
+              { tipo: 'blanco',   importe: val2, cobro: '' },
+              { tipo: 'echeq',    importe: val3, cobro: cobroDate },
+            ];
+
+            for (const item of fallbackList) {
+              if (item.importe > 0) {
+                const existing = queryOne(`
+                  SELECT id FROM payments
+                  WHERE fecha = ? AND tipo_pago = ? AND ABS(importe - ?) < 0.005
+                  LIMIT 1
+                `, [pmtDate, item.tipo, item.importe]);
+
+                if (!existing) {
+                  const openOrder = queryOne(`
+                    SELECT o.id FROM orders o
+                    WHERE (SELECT COALESCE(SUM(importe), 0) FROM payments WHERE order_id = o.id) < o.total
+                      AND o.estado != 'cancelado'
+                    ORDER BY o.numero ASC LIMIT 1
+                  `);
+                  run(`INSERT INTO payments (id, order_id, fecha, tipo_pago, importe, fecha_cobro, observaciones, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [uuid(), openOrder?.id || null, pmtDate, item.tipo, item.importe, item.cobro || '', 'Importado de Google Sheets', nowISO()]);
+                  importedCount++;
+                }
+              }
+            }
+          }
+          break;
+        }
+      }
     }
   }
 
+  // Auto-vincular pagos que hayan quedado sin order_id a pedidos que tengan saldo pendiente
+  _autoLinkPaymentsToOrders();
+
   return importedCount;
+}
+
+function _autoLinkPaymentsToOrders() {
+  const unlinked = queryAll(`SELECT id, importe FROM payments WHERE order_id IS NULL ORDER BY fecha ASC, created_at ASC`);
+  if (!unlinked || unlinked.length === 0) return;
+
+  for (const pmt of unlinked) {
+    const openOrder = queryOne(`
+      SELECT o.id FROM orders o
+      WHERE (SELECT COALESCE(SUM(importe), 0) FROM payments WHERE order_id = o.id) < o.total
+        AND o.estado != 'cancelado'
+      ORDER BY o.numero ASC LIMIT 1
+    `);
+    if (openOrder) {
+      run(`UPDATE payments SET order_id = ? WHERE id = ?`, [openOrder.id, pmt.id]);
+    }
+  }
 }
 

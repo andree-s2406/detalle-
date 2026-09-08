@@ -64,11 +64,11 @@ export function renderOrderForm(params = {}) {
       </div>
     </div>
 
-    <div class="grid grid-1">
-      <!-- Columna principal -->
-      <div>
+    <div class="order-form-layout">
+      <!-- Columna Principal: Datos, Productos y Saldo Anterior -->
+      <div class="order-form-main">
         <!-- Datos del pedido -->
-        <div class="card mb-md">
+        <div class="card mb-sm">
           <div class="card-header">
             <span class="card-title">${icon('orders')} Datos del pedido</span>
           </div>
@@ -89,10 +89,10 @@ export function renderOrderForm(params = {}) {
         </div>
 
         <!-- Productos del pedido -->
-        <div class="card mb-md">
+        <div class="card mb-sm">
           <div class="card-header">
             <span class="card-title">${icon('products')} Productos</span>
-            ${isEdit ? '<span class="badge badge-confirmado">Los precios existentes NO se modifican</span>' : ''}
+            ${isEdit ? '<span class="badge badge-confirmado">Precios guardados se conservan</span>' : ''}
           </div>
 
           <!-- Cabecera de la tabla de ítems -->
@@ -100,7 +100,7 @@ export function renderOrderForm(params = {}) {
             <div class="order-item-row order-item-header">
               <span>Producto</span>
               <span>Color</span>
-              <span class="text-center">Cantidad</span>
+              <span class="text-center">Cant.</span>
               <span class="text-right">Precio unit.</span>
               <span class="text-right">Subtotal</span>
               <span></span>
@@ -114,31 +114,44 @@ export function renderOrderForm(params = {}) {
         </div>
 
         <!-- Saldo Anterior (Opcional) -->
-        <div class="card mb-md">
+        <div class="card mb-sm">
           <div class="card-header">
             <span class="card-title">${icon('money')} Saldo Anterior (Deuda Previa)</span>
-            <span class="text-muted text-sm">Opcional — podés cargar efectivo, blanco o ambos</span>
+            <span class="text-muted text-xs">Opcional — podés cargar efectivo, blanco o ambos</span>
           </div>
           <div class="form-row">
             <div class="form-group mb-0">
-              <label class="form-label">Saldo en Efectivo / Negro ($)</label>
+              <label class="form-label">Saldo Efectivo / Negro ($)</label>
               <input type="number" class="form-control" id="of-saldo-anterior-efectivo"
                      value="${_order?.saldo_anterior_efectivo || (_order?.saldo_anterior_tipo === 'efectivo' ? _order.saldo_anterior_monto : '') || ''}"
                      placeholder="0.00" step="0.01" min="0">
-              <span class="form-hint">Suma al saldo sin factura</span>
+              <span class="form-hint">Suma a sin factura</span>
             </div>
             <div class="form-group mb-0">
-              <label class="form-label">Saldo en Blanco / Facturado ($)</label>
+              <label class="form-label">Saldo Blanco / Facturado ($)</label>
               <input type="number" class="form-control" id="of-saldo-anterior-blanco"
                      value="${_order?.saldo_anterior_blanco || (_order?.saldo_anterior_tipo === 'blanco' ? _order.saldo_anterior_monto : '') || ''}"
                      placeholder="0.00" step="0.01" min="0">
-              <span class="form-hint">Suma al saldo facturado</span>
+              <span class="form-hint">Suma a facturado</span>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Panel de totales -->
-        <div id="totals-panel-container"></div>
+      <!-- Columna Lateral: Resumen de Totales y Acciones -->
+      <div class="order-form-side">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">${icon('money')} Resumen Financiero</span>
+          </div>
+          <div id="totals-panel-container"></div>
+          <div class="order-form-side-actions mt-md">
+            <button class="btn btn-primary btn-block" id="btn-save-order-side">
+              ${icon('save')} ${isEdit ? 'Guardar cambios' : 'Crear pedido'}
+            </button>
+            <button class="btn btn-ghost btn-block" id="btn-cancel-form-side">← Volver</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -146,13 +159,16 @@ export function renderOrderForm(params = {}) {
   _renderAllItems();
   _renderTotals();
 
-  document.getElementById('btn-add-item').addEventListener('click', _addNewItem);
-  document.getElementById('btn-cancel-form').addEventListener('click', () => {
+  const cancelHandler = () => {
     if (isEdit) Router.navigate('order-detail', { id: _order.id });
     else Router.navigate('orders');
-  });
+  };
 
+  document.getElementById('btn-add-item').addEventListener('click', _addNewItem);
+  document.getElementById('btn-cancel-form').addEventListener('click', cancelHandler);
   document.getElementById('btn-save-order').addEventListener('click', _saveOrder);
+  document.getElementById('btn-cancel-form-side')?.addEventListener('click', cancelHandler);
+  document.getElementById('btn-save-order-side')?.addEventListener('click', _saveOrder);
 
   // Recalcular totales cuando cambian los saldos anteriores
   document.getElementById('of-saldo-anterior-efectivo')?.addEventListener('input', _renderTotals);
@@ -397,29 +413,29 @@ function _renderTotals() {
   const rec   = (getRecargoFactura() * 100).toFixed(1);
 
   container.innerHTML = `
-    <div class="totals-panel">
+    <div class="totals-panel totals-panel-flat">
       <div class="totals-row">
         <span class="label">Subtotal productos</span>
         <span class="amount">${formatCurrency(subtotalItems)}</span>
       </div>
       ${sEf > 0 ? `
         <div class="totals-row totals-row-warning-box">
-          <span class="label">${icon('money', '', 14)} Saldo Anterior Efectivo (Negro)</span>
+          <span class="label">${icon('money', '', 14)} Saldo Anterior Efectivo</span>
           <span class="amount text-warning font-semibold">+ ${formatCurrency(sEf)}</span>
         </div>
       ` : ''}
       ${sBl > 0 ? `
         <div class="totals-row totals-row-info-box">
-          <span class="label">${icon('invoice', '', 14)} Saldo Anterior en Blanco (Facturado)</span>
+          <span class="label">${icon('invoice', '', 14)} Saldo Anterior Blanco</span>
           <span class="amount text-accent font-semibold">+ ${formatCurrency(sBl)}</span>
         </div>
       ` : ''}
       <div class="totals-row">
-        <span class="label">Total Sin Factura (${pctSF}%${sEf > 0 ? ' + saldo ant.' : ''})</span>
+        <span class="label">Sin Factura (${pctSF}%${sEf > 0 ? ' + ant.' : ''})</span>
         <span class="amount sin-factura">${formatCurrency(sinFactura)}</span>
       </div>
       <div class="totals-row">
-        <span class="label">Total Facturado (${pctF}% × +${rec}%${sBl > 0 ? ' + saldo ant.' : ''})</span>
+        <span class="label">Facturado (${pctF}% × +${rec}%${sBl > 0 ? ' + ant.' : ''})</span>
         <span class="amount facturado">${formatCurrency(facturado)}</span>
       </div>
       <div class="totals-row total-final">

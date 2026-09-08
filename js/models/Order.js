@@ -41,13 +41,10 @@ export function getAllOrders(filters = {}) {
 
   return queryAll(`
     SELECT o.*,
-           COUNT(DISTINCT oi.id) AS total_items,
-           COALESCE(SUM(p.importe), 0) AS total_pagado
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) AS total_items,
+           (SELECT COALESCE(SUM(importe), 0) FROM payments WHERE order_id = o.id) AS total_pagado
     FROM orders o
-    LEFT JOIN order_items oi ON oi.order_id = o.id
-    LEFT JOIN payments p ON p.order_id = o.id
     ${whereClause}
-    GROUP BY o.id
     ORDER BY ${orderBy}
   `, params);
 }

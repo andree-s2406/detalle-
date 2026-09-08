@@ -327,23 +327,23 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: var(--sp-xl);
-  gap: var(--sp-md);
+  margin-bottom: var(--sp-md);
+  gap: var(--sp-sm);
   flex-wrap: wrap;
 }
 
 .page-title {
-  font-size: var(--fs-2xl);
+  font-size: 1.45rem;
   font-weight: 800;
   color: var(--c-text);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.025em;
   line-height: 1.15;
 }
 
 .page-subtitle {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   color: var(--c-text-3);
-  margin-top: var(--sp-xs);
+  margin-top: 2px;
 }
 
 .page-actions {
@@ -356,8 +356,8 @@
 /* Order Detail Grid */
 .order-detail-layout {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: var(--sp-lg);
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.2fr);
+  gap: var(--sp-md);
   align-items: start;
 }
 

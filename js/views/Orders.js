@@ -126,15 +126,15 @@ function _renderOrdersTable() {
           ${o.saldo_anterior_monto > 0 ? `<div class="text-xs text-accent mt-xs">Saldo ant. (${o.saldo_anterior_tipo === 'efectivo' ? 'Efectivo' : 'Blanco'})</div>` : ''}
         </td>
         <td class="td-actions" onclick="event.stopPropagation()">
-          <div class="flex gap-sm flex-end">
+          <div class="flex gap-xs flex-end">
             <button class="btn btn-ghost btn-icon btn-sm" title="Ver" onclick="window._viewOrder('${o.id}')">
-              ${icon('eye', '', 14)}
+              ${icon('eye', '', 12)}
             </button>
             <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick="window._editOrder('${o.id}')">
-              ${icon('edit', '', 14)}
+              ${icon('edit', '', 12)}
             </button>
             <button class="btn btn-ghost btn-icon btn-sm" title="Eliminar" onclick="window._deleteOrder('${o.id}')">
-              ${icon('trash', '', 14)}
+              ${icon('trash', '', 12)}
             </button>
           </div>
         </td>

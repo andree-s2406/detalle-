@@ -12,7 +12,8 @@ import { renderOrderForm } from './views/OrderForm.js';
 import { renderOrderDetail } from './views/OrderDetail.js';
 import { renderPayments }  from './views/Payments.js';
 import { renderSettings }  from './views/Settings.js';
-import { initGoogleAuth }  from './sync/google-auth.js';
+import { initGoogleAuth, isConnected }  from './sync/google-auth.js';
+import { GoogleSheetsSync } from './sync/google-sheets.js';
 
 // ── Inicialización al cargar la ventana ──────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -21,8 +22,19 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     await initDatabase();
 
-    // Auto-reconectar Google Drive en segundo plano si estaba configurado
-    initGoogleAuth(true).catch(e => console.log('[APP] Google Auth init:', e.message));
+    // Auto-reconectar Google Drive y sincronizar cambios en segundo plano
+    initGoogleAuth(true)
+      .then(async connected => {
+        if (connected) {
+          try {
+            await GoogleSheetsSync.importAllFromSheets();
+            Router.resolveHash();
+          } catch (syncErr) {
+            console.warn('[APP] Auto-sync inicial:', syncErr.message);
+          }
+        }
+      })
+      .catch(e => console.log('[APP] Google Auth init:', e.message));
 
     _setupRouter();
     _setupGlobalUI();
