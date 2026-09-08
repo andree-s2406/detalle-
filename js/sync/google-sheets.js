@@ -458,35 +458,6 @@ export const GoogleSheetsSync = {
           console.warn(`[Import] Error leyendo pestaña "${pmtTab}":`, ePmt.message);
         }
       }
-
-      // Si no se encontraron pagos en las pestañas de pagos, buscar en "Descripcion"
-      if (importedPayments === 0) {
-        try {
-          const descRows = await SheetsApi.getValues('Descripcion!A1:Z5000');
-          importedPayments += _extractPaymentsFromRows(descRows);
-        } catch (eDesc) {
-          console.warn('[Import] Error buscando pagos en Descripcion:', eDesc.message);
-        }
-      }
-
-      // Si aún no se encontraron, revisar todas las demás pestañas de la planilla
-      if (importedPayments === 0 && allSheetTitles.length > 0) {
-        for (const title of allSheetTitles) {
-          try {
-            const cleanTitle = title.trim();
-            const lower = cleanTitle.toLowerCase();
-            if (lower === 'productos' || lower === 'descripcion' || paymentTabs.includes(title)) continue;
-            const otherRows = await SheetsApi.getValues(`'${cleanTitle.replace(/'/g, "''")}'!A1:Z5000`);
-            const found = _extractPaymentsFromRows(otherRows);
-            if (found > 0) {
-              importedPayments += found;
-              break;
-            }
-          } catch (eTab) {
-            console.warn(`[Import] Omitiendo pestaña "${title}":`, eTab.message);
-          }
-        }
-      }
     } catch (e) {
       console.warn('[Import] Advertencia en lectura de pagos:', e.message);
     }
@@ -814,52 +785,6 @@ function _extractPaymentsFromRows(rows) {
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [uuid(), orderId, pmtDate, item.tipo, item.importe, item.cobro || '', 'Importado de Google Sheets', nowISO()]);
           importedCount++;
-        }
-      }
-    } else {
-      // Fallback: Si no hay cabecera explícita pero la fila tiene una fecha válida y montos en columnas siguientes
-      for (let c = 0; c < row.length - 1; c++) {
-        const potentialDate = String(row[c] || '').trim();
-        if (_isSheetDate(potentialDate)) {
-          const val1 = parseCurrency(row[c + 1]);
-          const val2 = parseCurrency(row[c + 2]);
-          const val3 = parseCurrency(row[c + 3]);
-          const cobroVal = String(row[c + 4] || '').trim();
-
-          if (val1 > 0 || val2 > 0 || val3 > 0) {
-            const pmtDate = _normalizeSheetDate(potentialDate);
-            const cobroDate = _isSheetDate(cobroVal) ? _normalizeSheetDate(cobroVal) : '';
-
-            const fallbackList = [
-              { tipo: 'efectivo', importe: val1, cobro: '' },
-              { tipo: 'blanco',   importe: val2, cobro: '' },
-              { tipo: 'echeq',    importe: val3, cobro: cobroDate },
-            ];
-
-            for (const item of fallbackList) {
-              if (item.importe > 0) {
-                const existing = queryOne(`
-                  SELECT id FROM payments
-                  WHERE fecha = ? AND tipo_pago = ? AND ABS(importe - ?) < 0.005
-                  LIMIT 1
-                `, [pmtDate, item.tipo, item.importe]);
-
-                if (!existing) {
-                  const openOrder = queryOne(`
-                    SELECT o.id FROM orders o
-                    WHERE (SELECT COALESCE(SUM(importe), 0) FROM payments WHERE order_id = o.id) < o.total
-                      AND o.estado != 'cancelado'
-                    ORDER BY o.numero ASC LIMIT 1
-                  `);
-                  run(`INSERT INTO payments (id, order_id, fecha, tipo_pago, importe, fecha_cobro, observaciones, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [uuid(), openOrder?.id || null, pmtDate, item.tipo, item.importe, item.cobro || '', 'Importado de Google Sheets', nowISO()]);
-                  importedCount++;
-                }
-              }
-            }
-          }
-          break;
         }
       }
     }

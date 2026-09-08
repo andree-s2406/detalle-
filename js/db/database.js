@@ -162,6 +162,17 @@ async function runMigrations() {
       } catch (e) { console.warn('V6 data migration note:', e); }
     }
 
+    // Limpiar pagos espurios de e-cheq creados por el fallback anterior
+    try {
+      _db.run(`
+        DELETE FROM payments 
+        WHERE tipo_pago = 'echeq' 
+          AND observaciones = 'Importado de Google Sheets' 
+          AND COALESCE(fecha_cobro, '') = '' 
+          AND importe IN (25, 4, 6);
+      `);
+    } catch (e) {}
+
     if (current < SCHEMA_VERSION) {
       _db.run(
         `INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`,
