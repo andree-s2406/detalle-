@@ -269,5 +269,88 @@ export const SheetsApi = {
         body: JSON.stringify({ values })
       });
     }
+  },
+
+  /**
+   * Aplicar colores dinámicos a TOTAL ABONADO (Amarillo) y PENDIENTE (Rojo),
+   * limpiando los colores de las filas anteriores a medida que se mueven hacia abajo.
+   */
+  async formatPaymentSummaryRows(sheetName, totalRowOffset, pendingRowOffset) {
+    try {
+      const data = await sheetsFetch('');
+      const cleanName = sheetName.trim().toLowerCase();
+      const sheetObj = data.sheets?.find(s => {
+        const title = s.properties.title.trim().toLowerCase();
+        return title === cleanName || title.includes(cleanName);
+      });
+      const sheetId = sheetObj?.properties?.sheetId;
+      if (sheetId === null || sheetId === undefined) return;
+
+      const requests = [
+        // 1. Limpiar color de fondo en las columnas E..G desde la fila 3 hasta la fila 250
+        {
+          repeatCell: {
+            range: {
+              sheetId: sheetId,
+              startRowIndex: 2,
+              endRowIndex: 250,
+              startColumnIndex: 4,
+              endColumnIndex: 7
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 1, green: 1, blue: 1, alpha: 0 }
+              }
+            },
+            fields: 'userEnteredFormat.backgroundColor'
+          }
+        },
+        // 2. Pintar TOTAL ABONADO de AMARILLO (Cols E..G)
+        {
+          repeatCell: {
+            range: {
+              sheetId: sheetId,
+              startRowIndex: 2 + totalRowOffset,
+              endRowIndex: 3 + totalRowOffset,
+              startColumnIndex: 4,
+              endColumnIndex: 7
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 1.0, green: 0.92, blue: 0.23 },
+                textFormat: { bold: true, foregroundColor: { red: 0.1, green: 0.1, blue: 0.1 } }
+              }
+            },
+            fields: 'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat'
+          }
+        },
+        // 3. Pintar PENDIENTE de ROJO (Cols E..G)
+        {
+          repeatCell: {
+            range: {
+              sheetId: sheetId,
+              startRowIndex: 2 + pendingRowOffset,
+              endRowIndex: 3 + pendingRowOffset,
+              startColumnIndex: 4,
+              endColumnIndex: 7
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.95, green: 0.26, blue: 0.21 },
+                textFormat: { bold: true, foregroundColor: { red: 1.0, green: 1.0, blue: 1.0 } }
+              }
+            },
+            fields: 'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat'
+          }
+        }
+      ];
+
+      await sheetsFetch(':batchUpdate', {
+        method: 'POST',
+        body: JSON.stringify({ requests })
+      });
+    } catch (err) {
+      console.warn('[SheetsApi] No se pudo aplicar formato de colores en Pagos:', err.message);
+    }
   }
 };

@@ -264,6 +264,8 @@ export const GoogleSheetsSync = {
 
     // Las filas 1 y 2 contienen los titulos y encabezados fijos de la planilla.
     await SheetsApi.clearAndReplace('Pagos', rows, 'A3');
+    // Aplicar colores dinámicos a TOTAL ABONADO (Amarillo) y PENDIENTE (Rojo)
+    await SheetsApi.formatPaymentSummaryRows('Pagos', paymentTotalRow, paymentPendingRow);
   },
 
   /**
