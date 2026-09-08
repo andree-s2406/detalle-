@@ -425,62 +425,103 @@ export const GoogleSheetsSync = {
       console.warn('[Import] Advertencia en hoja Descripcion (pedidos):', e.message);
     }
 
-    // 3. Importar HOJA "Pagos" (Pagos en cols E a I, filas desde E1)
+    // 3. Importar HOJA "Pagos" (Detección dinámica de columnas de abonos)
     try {
-      const pmtRows = await SheetsApi.getValues('Pagos!E1:I1000');
+      const pmtRows = await SheetsApi.getValues('Pagos!A1:Z1000');
       if (pmtRows && pmtRows.length > 0) {
+        // 3.1. Detectar índices de columnas dinámicamente buscando en las primeras filas
+        let colFechaIdx = -1;
+        let colEfectivoIdx = -1;
+        let colBlancoIdx = -1;
+        let colEcheqIdx = -1;
+        let colFechaCobroIdx = -1;
+
+        for (let r = 0; r < Math.min(5, pmtRows.length); r++) {
+          const row = pmtRows[r] || [];
+          for (let c = 0; c < row.length; c++) {
+            const cell = String(row[c] || '').trim().toLowerCase();
+            if (cell.includes('abono efectivo') || (cell.includes('efectivo') && !cell.includes('saldo'))) {
+              colEfectivoIdx = c;
+            } else if (cell.includes('abono en blanco') || cell.includes('abono blanco') || (cell.includes('blanco') && !cell.includes('saldo'))) {
+              colBlancoIdx = c;
+            } else if (cell.includes('echeq') || cell.includes('cheque')) {
+              colEcheqIdx = c;
+            } else if (cell.includes('fecha cobro') || cell.includes('cobro echeq')) {
+              colFechaCobroIdx = c;
+            }
+          }
+          // Si encontramos columnas de abono en esta fila, buscar la columna 'fecha' inmediatamente a la izquierda
+          if (colEfectivoIdx !== -1 || colBlancoIdx !== -1) {
+            const abonoStart = Math.min(
+              colEfectivoIdx !== -1 ? colEfectivoIdx : 99,
+              colBlancoIdx !== -1 ? colBlancoIdx : 99
+            );
+            for (let c = abonoStart - 1; c >= 0; c--) {
+              const cell = String(row[c] || '').trim().toLowerCase();
+              if (cell.includes('fecha')) {
+                colFechaIdx = c;
+                break;
+              }
+            }
+            break;
+          }
+        }
+
+        // Si no se encontraron encabezados específicos, usar las columnas estándar (Tabla derecha: E..I)
+        if (colEfectivoIdx === -1) {
+          colFechaIdx = 4;
+          colEfectivoIdx = 5;
+          colBlancoIdx = 6;
+          colEcheqIdx = 7;
+          colFechaCobroIdx = 8;
+        }
+
         for (let i = 0; i < pmtRows.length; i++) {
           const row = pmtRows[i];
           if (!row || row.length === 0) continue;
 
-          const col0 = String(row[0] || '').trim();
-          const normalizedCol0 = col0.toLowerCase();
+          const rawFecha = String(row[colFechaIdx] || '').trim();
+          const normFecha = rawFecha.toLowerCase();
 
-          // Saltar filas de encabezado y filas de resumen fijas
-          const isHeaderOrSummary =
-            normalizedCol0 === 'fecha' ||
-            normalizedCol0.includes('total abonado') ||
-            normalizedCol0.includes('pendiente') ||
-            normalizedCol0.includes('total saldos') ||
-            normalizedCol0 === 'total' ||
-            normalizedCol0 === '-' ||
-            normalizedCol0 === '—';
+          // Saltar filas de encabezado y filas de resumen
+          if (
+            normFecha === 'fecha' ||
+            normFecha.includes('total') ||
+            normFecha.includes('pendiente') ||
+            normFecha.includes('saldo') ||
+            normFecha === '-' || normFecha === '—'
+          ) {
+            continue;
+          }
 
-          if (isHeaderOrSummary) continue;
+          const efectivo   = parseCurrency(row[colEfectivoIdx]);
+          const blanco     = parseCurrency(row[colBlancoIdx]);
+          const echeq      = parseCurrency(row[colEcheqIdx]);
+          const fechaCobro = String(row[colFechaCobroIdx] || '').trim();
 
-          const efectivo   = parseCurrency(row[1]);
-          const blanco     = parseCurrency(row[2]);
-          const echeq      = parseCurrency(row[3]);
-          const fechaCobro = String(row[4] || '').trim();
-
-          // Si no hay ningún importe positivo en la fila, saltear
+          // Si no hay ningún importe en esta fila, saltear
           if (efectivo <= 0 && blanco <= 0 && echeq <= 0) continue;
 
-          // Si la columna fecha tiene una fecha válida, usarla; si no, usar fecha de hoy
-          const normalizedPaymentDate = _isSheetDate(col0) ? _normalizeSheetDate(col0) : todayISO();
-          const normalizedCobroDate   = _isSheetDate(fechaCobro) ? _normalizeSheetDate(fechaCobro) : (fechaCobro || '');
+          const pmtDate = _isSheetDate(rawFecha) ? _normalizeSheetDate(rawFecha) : todayISO();
+          const cobroDate = _isSheetDate(fechaCobro) ? _normalizeSheetDate(fechaCobro) : (fechaCobro || '');
 
-          // Registrar pagos según tipo
           const pmtList = [
             { tipo: 'efectivo', importe: efectivo, cobro: '' },
             { tipo: 'blanco',   importe: blanco,   cobro: '' },
-            { tipo: 'echeq',    importe: echeq,    cobro: normalizedCobroDate },
+            { tipo: 'echeq',    importe: echeq,    cobro: cobroDate },
           ];
 
           for (const item of pmtList) {
             if (item.importe > 0) {
-              // Verificar si ya existe este pago exacto para evitar duplicados
               const existingPayment = queryOne(`
                 SELECT id FROM payments
                 WHERE fecha = ? AND tipo_pago = ? AND ABS(importe - ?) < 0.005
                   AND COALESCE(fecha_cobro, '') = ?
                 LIMIT 1
-              `, [normalizedPaymentDate, item.tipo, item.importe, item.cobro || '']);
+              `, [pmtDate, item.tipo, item.importe, item.cobro || '']);
 
               if (existingPayment) continue;
 
-              // Asignar al primer pedido abierto con saldo pendiente si existe,
-              // o registrar como Pago General (order_id = NULL)
               const openOrder = queryOne(`
                 SELECT o.id, o.numero FROM orders o
                 WHERE (SELECT COALESCE(SUM(importe), 0) FROM payments WHERE order_id = o.id) < o.total
@@ -492,15 +533,15 @@ export const GoogleSheetsSync = {
 
               run(`INSERT INTO payments (id, order_id, fecha, tipo_pago, importe, fecha_cobro, observaciones, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [uuid(), orderId, normalizedPaymentDate, item.tipo, item.importe,
-                 item.cobro || '', 'Importado de Google Sheets', nowISO()]);
+                [uuid(), orderId, pmtDate, item.tipo, item.importe, item.cobro || '', 'Importado de Google Sheets', nowISO()]);
               importedPayments++;
             }
           }
         }
       }
     } catch (e) {
-      console.warn('[Import] Advertencia en hoja Pagos:', e.message);
+      console.warn('[Import] Error en hoja Pagos:', e.message);
+      throw new Error(`No se pudo leer la hoja "Pagos": ${e.message}`);
     }
 
     await persistDatabase();
