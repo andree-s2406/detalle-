@@ -251,9 +251,11 @@ function _renderItemRow(item) {
       </div>
 
       <!-- Eliminar -->
-      <div class="flex-center">
-        <button class="btn btn-ghost btn-icon btn-sm text-danger" title="Eliminar línea"
-                id="item-del-${item._key}">${icon('trash', '', 14)}</button>
+      <div class="flex-center item-del-wrapper">
+        <button class="btn btn-ghost btn-icon btn-sm text-danger item-del-btn" title="Eliminar línea"
+                id="item-del-${item._key}">
+          ${icon('trash', '', 13)} <span class="mobile-del-text">Eliminar</span>
+        </button>
       </div>
     </div>
   `;
