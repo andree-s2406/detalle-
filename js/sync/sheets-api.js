@@ -76,20 +76,78 @@ async function getSpreadsheetSheets(forceRefresh = false) {
 }
 
 /**
- * Resolver el nombre exacto de la hoja (insensible a mayúsculas/minúsculas y espacios)
+ * Resolver el nombre exacto de la hoja (insensible a mayúsculas/minúsculas, espacios y palabras clave)
  */
 function resolveSheetTitleFromList(requestedName, sheetList) {
   if (!requestedName) return requestedName;
   const cleanReq = requestedName.trim().toLowerCase();
-  const match = sheetList.find(s => s.trim().toLowerCase() === cleanReq);
+
+  // 1. Coincidencia exacta
+  let match = sheetList.find(s => s.trim().toLowerCase() === cleanReq);
+  if (match) return match;
+
+  // 2. Coincidencia por palabra clave común
+  if (cleanReq === 'pagos') {
+    match = sheetList.find(s => {
+      const low = s.trim().toLowerCase();
+      return low.includes('pago') || low.includes('cobro') || low.includes('abono');
+    });
+  } else if (cleanReq === 'descripcion') {
+    match = sheetList.find(s => {
+      const low = s.trim().toLowerCase();
+      return low.includes('descrip') || low.includes('pedido') || low.includes('envio');
+    });
+  } else if (cleanReq === 'productos') {
+    match = sheetList.find(s => {
+      const low = s.trim().toLowerCase();
+      return low.includes('prod') || low.includes('artic') || low.includes('catalogo') || low.includes('precio');
+    });
+  }
+
   return match || requestedName.trim();
+}
+
+/**
+ * Crear la pestaña en Google Sheets si no existe
+ */
+async function ensureSheetExists(sheetTitle) {
+  const sheetList = await getSpreadsheetSheets();
+  const cleanReq = sheetTitle.trim().toLowerCase();
+  const exists = sheetList.some(s => {
+    const low = s.trim().toLowerCase();
+    return low === cleanReq || (cleanReq === 'pagos' && (low.includes('pago') || low.includes('cobro')));
+  });
+
+  if (exists) return resolveSheetTitleFromList(sheetTitle, sheetList);
+
+  try {
+    await sheetsFetch(':batchUpdate', {
+      method: 'POST',
+      body: JSON.stringify({
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: sheetTitle
+              }
+            }
+          }
+        ]
+      })
+    });
+    _sheetTitlesCache = null;
+    const updatedList = await getSpreadsheetSheets(true);
+    return resolveSheetTitleFromList(sheetTitle, updatedList);
+  } catch (err) {
+    console.warn(`[SheetsApi] Nota al crear pestaña "${sheetTitle}":`, err.message);
+    return sheetTitle;
+  }
 }
 
 /**
  * Formatear un rango seguro A1 con comillas simples para la API de Google Sheets
  */
 async function formatSafeRange(rangeOrSheet, cellRange = '') {
-  const sheetList = await getSpreadsheetSheets();
   let sheetName = rangeOrSheet;
   let cells = cellRange;
 
@@ -99,8 +157,8 @@ async function formatSafeRange(rangeOrSheet, cellRange = '') {
     cells = parts[1] || '';
   }
 
-  const resolvedName = resolveSheetTitleFromList(sheetName, sheetList);
-  const escapedName = resolvedName.replace(/'/g, "''");
+  const resolvedName = await ensureSheetExists(sheetName);
+  const escapedName = String(resolvedName || sheetName).replace(/'/g, "''");
   return cells ? `'${escapedName}'!${cells}` : `'${escapedName}'`;
 }
 
@@ -116,27 +174,38 @@ export const SheetsApi = {
     return {
       title: data.properties?.title || 'Planilla de Pedidos',
       sheets,
-      hasRequiredSheets: ['Descripcion', 'productos', 'Pagos'].every(name =>
-        sheets.some(s => s.trim().toLowerCase() === name.trim().toLowerCase())
-      )
+      hasRequiredSheets: ['Descripcion', 'productos', 'Pagos'].every(name => {
+        const cleanName = name.trim().toLowerCase();
+        return sheets.some(s => {
+          const low = s.trim().toLowerCase();
+          return low === cleanName || low.includes(cleanName);
+        });
+      })
     };
   },
 
   /**
-   * Obtener filas de una hoja específica
+   * Obtener filas de una hoja específica de forma tolerante a fallos
    */
   async getValues(range) {
-    const safeRange = await formatSafeRange(range);
     try {
+      const safeRange = await formatSafeRange(range);
       const data = await sheetsFetch(`/values/${encodeURIComponent(safeRange)}`);
       return data.values || [];
     } catch (err) {
-      // Si falló, intentar recargar títulos y reintentar
       if (err.message?.includes('Unable to parse range')) {
-        const refreshedList = await getSpreadsheetSheets(true);
-        const retryRange = await formatSafeRange(range);
-        const retryData = await sheetsFetch(`/values/${encodeURIComponent(retryRange)}`);
-        return retryData.values || [];
+        console.warn(`[SheetsApi] Rango no encontrado "${range}", reintentando tras asegurar pestaña...`);
+        try {
+          const parts = range.split('!');
+          const sheetName = parts[0].replace(/^'|'$/g, '');
+          await ensureSheetExists(sheetName);
+          const safeRange = await formatSafeRange(range);
+          const data = await sheetsFetch(`/values/${encodeURIComponent(safeRange)}`);
+          return data.values || [];
+        } catch (retryErr) {
+          console.warn(`[SheetsApi] Pestaña vacía o no disponible para "${range}":`, retryErr.message);
+          return [];
+        }
       }
       throw err;
     }
@@ -168,21 +237,20 @@ export const SheetsApi = {
    * Reemplazar todo el contenido de una hoja
    */
   async clearAndReplace(sheetName, values, startCell = 'A1') {
-    const sheetList = await getSpreadsheetSheets();
-    const resolvedName = resolveSheetTitleFromList(sheetName, sheetList);
-    const escapedName = resolvedName.replace(/'/g, "''");
+    const resolvedName = await ensureSheetExists(sheetName);
+    const escapedName = String(resolvedName || sheetName).replace(/'/g, "''");
 
     // 1. Limpiar hoja con rango seguro
     try {
       const range = `'${escapedName}'!${startCell}:Z5000`;
       await sheetsFetch(`/values/${encodeURIComponent(range)}:clear`, { method: 'POST' });
     } catch (clearErr) {
-      console.warn(`[SheetsApi] Reintentando clear simplificado para ${sheetName}:`, clearErr.message);
+      console.warn(`[SheetsApi] Reintentando clear para ${sheetName}:`, clearErr.message);
       try {
         const fallbackRange = `'${escapedName}'!${startCell}:I2000`;
         await sheetsFetch(`/values/${encodeURIComponent(fallbackRange)}:clear`, { method: 'POST' });
       } catch (fallbackErr) {
-        console.warn(`[SheetsApi] No se pudo limpiar el rango previo:`, fallbackErr.message);
+        console.warn(`[SheetsApi] Clear omitido:`, fallbackErr.message);
       }
     }
 

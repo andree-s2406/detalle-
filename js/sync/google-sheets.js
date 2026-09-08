@@ -540,8 +540,7 @@ export const GoogleSheetsSync = {
         }
       }
     } catch (e) {
-      console.warn('[Import] Error en hoja Pagos:', e.message);
-      throw new Error(`No se pudo leer la hoja "Pagos": ${e.message}`);
+      console.warn('[Import] Advertencia en lectura de hoja Pagos:', e.message);
     }
 
     await persistDatabase();
