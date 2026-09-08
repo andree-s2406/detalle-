@@ -4,9 +4,9 @@
 
 import { getConfig, setConfig } from '../config.js';
 import { Toast } from '../components/Toast.js';
-import { exportDatabase, importDatabase } from '../db/database.js';
+import { exportDatabase, importDatabase, queryOne } from '../db/database.js';
 import { Modal } from '../components/Modal.js';
-import { escapeHtml } from '../components/Formatter.js';
+import { escapeHtml, formatCurrency } from '../components/Formatter.js';
 import { requestAuth, disconnectAuth, isConnected, initGoogleAuth } from '../sync/google-auth.js';
 import { GoogleSheetsSync } from '../sync/google-sheets.js';
 import { SheetsApi } from '../sync/sheets-api.js';
@@ -204,7 +204,13 @@ export function renderSettings() {
       try {
         Toast.info('Extrayendo datos...', 'Leyendo hojas Descripcion, productos y Pagos desde Google Drive');
         const res = await GoogleSheetsSync.importAllFromSheets();
-        Toast.success('Importación completada', `Se importaron ${res.productsCount} producto(s), ${res.ordersCount} pedido(s) y ${res.paymentsCount} pago(s).`);
+        const totalPmt = queryOne(`SELECT COUNT(*) as cant, COALESCE(SUM(importe), 0) as total FROM payments`);
+        const cant = totalPmt?.cant ?? 0;
+        const total = formatCurrency(totalPmt?.total ?? 0);
+        Toast.success(
+          'Importación completada',
+          `Se importaron ${res.productsCount} producto(s), ${res.ordersCount} pedido(s) y ${res.paymentsCount} pago(s) nuevo(s). Total en el sistema: ${cant} pago(s) (${total}).`
+        );
       } catch (e) {
         Toast.error('Error al importar', e.message);
       }

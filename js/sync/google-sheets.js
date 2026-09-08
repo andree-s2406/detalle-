@@ -425,15 +425,38 @@ export const GoogleSheetsSync = {
       console.warn('[Import] Advertencia en hoja Descripcion (pedidos):', e.message);
     }
 
-    // 3. Importar HOJA "Pagos" (Detección dinámica y robusta de abonos)
+    // 3. Importar HOJA "Pagos" (y cualquier pestaña que contenga abonos)
     try {
+      const allSheetTitles = await SheetsApi.getSpreadsheetSheets();
+      console.log('[Import] Pestañas disponibles en la planilla:', allSheetTitles);
+
+      // 1. Intentar con la pestaña Pagos
       const pmtRows = await SheetsApi.getValues('Pagos!A1:Z1000');
       importedPayments += _extractPaymentsFromRows(pmtRows);
 
-      // Si no se encontraron pagos en la hoja "Pagos", buscar en "Descripcion"
+      // 2. Si no se encontraron pagos en "Pagos", buscar en "Descripcion"
       if (importedPayments === 0) {
         const descRows = await SheetsApi.getValues('Descripcion!A1:Z5000');
         importedPayments += _extractPaymentsFromRows(descRows);
+      }
+
+      // 3. Si aún no se encontraron, revisar todas las demás pestañas de la planilla
+      if (importedPayments === 0 && allSheetTitles.length > 0) {
+        for (const title of allSheetTitles) {
+          try {
+            const cleanTitle = title.trim();
+            const lower = cleanTitle.toLowerCase();
+            if (lower === 'productos') continue;
+            const otherRows = await SheetsApi.getValues(`'${cleanTitle.replace(/'/g, "''")}'!A1:Z5000`);
+            const found = _extractPaymentsFromRows(otherRows);
+            if (found > 0) {
+              importedPayments += found;
+              break;
+            }
+          } catch (eTab) {
+            console.warn(`[Import] Omitiendo pestaña "${title}":`, eTab.message);
+          }
+        }
       }
     } catch (e) {
       console.warn('[Import] Advertencia en lectura de pagos:', e.message);
